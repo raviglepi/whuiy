@@ -44,6 +44,37 @@ function find(parent: HTMLElement, selector: string): HTMLElement {
 }
 
 describe("interactive updates", () => {
+  it("patches a write that arrives from a later async effect", async () => {
+    const Count = Token("Count")<number>();
+    const Text = Token("Text").content<string>();
+    const Counter = Token("Counter")();
+    const ui = new Whuiy().rule(Counter(Count()), function* (counter) {
+      yield* counter
+        .get(Element.P)
+        .get(Text)
+        .pipe(Token.setValue(String(counter.get(Count).value() ?? 0)));
+    });
+    const runtime = Effect.runSync(ui.make());
+    const parent = document.createElement("main");
+    const renderer = createDomRenderer({reportError: () => undefined, runtime});
+    const description = Counter(Count(0), Element.P(Text("0")));
+
+    renderer.render(parent, description);
+    const mounted = Effect.runSync(runtime.mount(description));
+    const paragraph = find(parent, "p");
+    expect(paragraph.textContent).toBe("0");
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* Effect.sleep("1 millis");
+        yield* mounted.roots[0]!.get(Count).pipe(Token.setValue(1));
+      }),
+    );
+
+    expect(parent.querySelector("p")).toBe(paragraph);
+    expect(paragraph.textContent).toBe("1");
+  });
+
   it("turns a click into a patched label without replacing nodes", () => {
     const parent = document.createElement("main");
     const runtime = Effect.runSync(counter().make());

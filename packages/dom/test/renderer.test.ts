@@ -7,6 +7,29 @@ import {Element, Event, Style, Token, Whuiy} from "whuiy";
 import {createDomRenderer} from "../src/index.ts";
 
 describe("DOM renderer", () => {
+  it("reports a rule failure raised during the initial mount", () => {
+    const Item = Token("Item")();
+    const reported: string[] = [];
+    const runtime = Effect.runSync(
+      new Whuiy()
+        .rule(Item(), function* () {
+          throw new Error("initial rule failure");
+        })
+        .make(),
+    );
+    const parent = document.createElement("main");
+    const renderer = createDomRenderer({
+      reportError: report => {
+        if (report.kind === "rule") reported.push(report.failure.rule);
+      },
+      runtime,
+    });
+
+    renderer.render(parent, Item());
+
+    expect(reported).toEqual(["Item.1"]);
+  });
+
   it("renders native elements, runs event effects, and disposes its projection", () => {
     const runtime = Effect.runSync(new Whuiy().make());
     const parent = document.createElement("main");

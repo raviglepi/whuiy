@@ -17,6 +17,8 @@ Relations are plural: a token can hold every relation, not only the last one per
   into the DOM as text.
 - The DOM renderer reports rule failures that happen during the initial mount
   and patches data-token changes instead of rebuilding the projection.
+- `WhuiyRuntime.subscribeFailures` delivers failed rules synchronously, and
+  `renderToString` throws instead of shipping markup from a broken rule.
 - Rules re-evaluate only the nodes touched by a change, so a write inside one
   list row does not re-run rules for the other rows.
 - The write path runs synchronously behind the Effect facade; a direct value

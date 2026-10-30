@@ -1,8 +1,8 @@
 /** @since 0.4.0 */
 
-import type {LiveToken, TokenRoot} from "whuiy";
+import type {LiveToken, RuleFailure, TokenRoot} from "whuiy";
 
-import {Effect, Schema} from "effect";
+import {Cause, Effect, Schema} from "effect";
 
 import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {Whuiy} from "whuiy";
@@ -100,15 +100,26 @@ function parts(tokens: readonly LiveToken[]): Parts {
  *
  * Call this inside `comptime(() => ...)` to ship markup instead of a runtime.
  * The function is synchronous, so it belongs in build steps and tests, not in
- * render loops.
+ * render loops. A rule that fails while rendering throws, so a broken
+ * description cannot silently ship wrong markup.
  *
  * @since 0.4.0
  * @category Destructors
  */
 export function renderToString(whuiy: Whuiy, ...roots: readonly TokenRoot[]): string {
   const runtime = Effect.runSync(whuiy.make());
+  const failures: RuleFailure[] = [];
+  const unsubscribe = runtime.subscribeFailures(failure => failures.push(failure));
   const mounted = Effect.runSync(runtime.mount(...roots));
   const html = parts(mounted.roots).body;
   Effect.runSync(mounted.release);
+  unsubscribe();
+  if (failures[0] !== undefined) throw ruleFailureError(failures[0]);
   return html;
+}
+
+function ruleFailureError(failure: RuleFailure): Error {
+  return new Error(
+    `Rule ${failure.rule} failed while rendering to HTML: ${Cause.pretty(failure.cause)}`,
+  );
 }

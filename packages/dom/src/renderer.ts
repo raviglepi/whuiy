@@ -3,7 +3,7 @@
 import type {GraphChange, LiveToken, TokenRoot, TokenValue, WhuiyRuntime} from "whuiy";
 import type {ErrorReporter} from "./errors.ts";
 
-import {Cause, Effect, Exit, Fiber, Predicate, Schema, Stream} from "effect";
+import {Cause, Effect, Exit, Predicate, Schema} from "effect";
 
 import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {ProjectionError} from "./errors.ts";
@@ -22,7 +22,6 @@ interface StyleOwner {
 interface Context {
   readonly document: Document;
   readonly entries: Map<number, Entry>;
-  readonly fibers: Set<Fiber.Fiber<void, never>>;
   readonly known: Set<number>;
   readonly owners: Map<number, StyleOwner>;
   readonly reportError: ErrorReporter;
@@ -209,33 +208,21 @@ function removeAll(nodes: readonly Node[]): void {
   for (const node of nodes) node.parentNode?.removeChild(node);
 }
 
-function ignored(disposed: boolean, kind: string): boolean {
-  return disposed || kind === "initial";
-}
-
-function interrupt(fibers: ReadonlySet<Fiber.Fiber<void, never>>): void {
-  for (const fiber of fibers) Effect.runSync(Fiber.interrupt(fiber));
-}
-
 /** @since 0.4.0 */
 export function createDomRenderer(options: DomRendererOptions): DomRenderer {
   return {
     render(parent, ...roots) {
-      const fibers = new Set<Fiber.Fiber<void, never>>();
       let disposed = false;
       let owned: readonly Node[] = [];
       const ctx: Context = {
         document: parent.ownerDocument,
         entries: new Map(),
-        fibers,
         known: new Set(),
         owners: new Map(),
         reportError: options.reportError,
       };
-      const failures = Effect.runFork(
-        Stream.runForEach(options.runtime.ruleFailures, failure =>
-          Effect.sync(() => options.reportError({failure, kind: "rule"})),
-        ),
+      const unsubscribeFailures = options.runtime.subscribeFailures(failure =>
+        options.reportError({failure, kind: "rule"}),
       );
       const mounted = Effect.runSync(options.runtime.mount(...roots));
       const rebuild = (): void => {
@@ -260,8 +247,7 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         owned = [];
         clearContext(ctx);
         unsubscribe();
-        Effect.runSync(Fiber.interrupt(failures));
-        interrupt(fibers);
+        unsubscribeFailures();
         Effect.runSync(mounted.release);
       };
       return {

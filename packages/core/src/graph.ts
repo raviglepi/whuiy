@@ -135,6 +135,13 @@ export interface WhuiyRuntime {
    * no fiber hop, so a write is visible before the writing effect returns.
    */
   readonly subscribe: (listener: (change: GraphChange) => void) => () => void;
+  /**
+   * Calls `listener` synchronously for every failed rule invocation.
+   *
+   * Build steps and adapters that own a mount want this instead of
+   * `ruleFailures`: it cannot miss a failure that happened during the mount.
+   */
+  readonly subscribeFailures: (listener: (failure: RuleFailure) => void) => () => void;
 }
 
 /** @internal */
@@ -726,6 +733,7 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
   const revision = yield* SubscriptionRef.make<GraphChange>({kind: "initial"});
   const failurePubSub = yield* PubSub.unbounded<RuleFailure>();
   const listeners = new Set<(change: GraphChange) => void>();
+  const failureListeners = new Set<(failure: RuleFailure) => void>();
   let operations: RuntimeOperations | undefined;
 
   const publish = (change: GraphChange): void => {
@@ -749,6 +757,7 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     publish,
     publishFailure: failure => {
       PubSub.publishUnsafe(failurePubSub, failure);
+      for (const listener of failureListeners) listener(failure);
     },
     state,
   });
@@ -788,6 +797,10 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     subscribe: listener => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    subscribeFailures: listener => {
+      failureListeners.add(listener);
+      return () => failureListeners.delete(listener);
     },
   } satisfies WhuiyRuntime;
 });

@@ -37,4 +37,13 @@ describe("static HTML rendering", () => {
       '<br style="margin:1rem">',
     );
   });
+
+  it("throws when a rule fails while rendering", () => {
+    const Item = Token("Item")();
+    const ui = new Whuiy().rule(Item(), function* () {
+      throw new Error("boom");
+    });
+
+    expect(() => renderToString(ui, Item())).toThrow(/Rule Item\.1 failed while rendering/);
+  });
 });
