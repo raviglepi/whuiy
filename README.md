@@ -2,9 +2,8 @@
 
 Whuiy describes a user interface as a graph of facts and the rules that follow
 from them. Adapters project that graph into React or plain DOM. A compiler
-lowers the rules to per-element plans, and the static parts of a page can be
-rendered to HTML at build time, so the browser ships markup instead of a
-framework.
+lowers the rules to per-element plans, the static parts of a page render to HTML
+at build time, and the browser patches only the nodes whose tokens changed.
 
 ```ts
 import {Effect} from "effect";
@@ -13,7 +12,7 @@ import {Token, Whuiy} from "whuiy";
 
 const Disabled = Token("Disabled")();
 const Button = Token("Button")();
-const Opacity = Token("Opacity")<number>();
+const Opacity = Token("Opacity").single<number>();
 
 const ui = new Whuiy().rule(Button(Disabled()), function* (button) {
   yield* button.get(Opacity()).pipe(Token.setValue(0.5));
@@ -34,8 +33,9 @@ it.
 - A **token definition** names a kind of fact: `Button`, `Disabled`, `Color`.
 - A **token instance** says that fact holds, optionally with a value:
   `Button(Disabled(), Color("red"))`.
-- A **relation** is a token instance inside another one. Relations are what
-  makes `Button(Disabled())` true.
+- A **relation** is a token instance inside another one. Relations are plural:
+  `Element.Div(Element.Span(Text("a")), Element.Span(Text("b")))` mounts both
+  spans, in insertion order, so a description can carry lists.
 - A **rule** matches a condition on a definition and writes derived tokens. It
   yields typed writes, so the compiler can see what it changes.
 - An **adapter** reads the mounted graph and produces something a browser can
@@ -46,6 +46,32 @@ The Canon idea behind this: a program should describe the concepts it works
 with, how they relate, and why an operation follows. Whuiy is the UI-sized
 version of that, built to exist today in TypeScript rather than to wait for a
 language.
+
+### Looking up relations
+
+`get` requires exactly one match. A relation that is ambiguous is an error that
+tells you to disambiguate:
+
+```ts
+div.get(Element.Span); // Error: Token Div#3 has 2 Span relations; use all(Span) …
+div.all(Element.Span); // [spanA, spanB]
+```
+
+`all` returns every match in insertion order. Rule conditions are the plural
+form: `new Whuiy().rule(Row(Label()), handler)` runs once per matching `Row`.
+
+### Cardinality and content
+
+Two declarations change how a definition behaves in the graph and in adapters:
+
+```ts
+const Opacity = Token("Opacity").single<number>(); // replaces its previous relation
+const Text = Token("Text").content<string>(); // projects its value as text
+```
+
+`Style` and `Event` tokens are single by definition. Data tokens such as
+`Count(0)` are neither, so they stay in the graph and never leak into markup as
+text.
 
 ## Compiled rules
 
@@ -62,6 +88,10 @@ program.explain(Button); // ["Button.1: Button + Disabled"]
 `make()` compiles internally, so the builder API stays the same. Call `compile()`
 directly when you want to inspect the plan or hand it to a custom adapter.
 
+Rules re-evaluate only the nodes touched by a change: a value write inside one
+list row runs the rules for that row, not for the other rows. A rule runs again
+for a node when the node itself changed, or when a token in its subtree changed.
+
 ## Static output
 
 Rule bodies are ordinary Effect generators, so they cannot in general be erased.
@@ -69,16 +99,24 @@ What can be erased is everything they produce for a description that does not
 change: mount the graph at build time, run the rules to a fixed point, serialize,
 and ship the result.
 
+`examples/static` does exactly that:
+
 ```ts
 import {comptime} from "comptime";
 
 import {renderToString} from "@whuiy/dom";
+import {page, ui} from "./page.ts";
 
-const html = comptime(() => renderToString(ui, Button(Disabled(), Opacity(1))));
+const html = comptime(() => renderToString(ui, page));
 ```
 
-With the `comptime` Vite plugin, `html` becomes a string literal in the bundle.
-The tokens, rules, and runtime for that subtree never reach the browser.
+`bun run build` in that folder turns the description and its rules into a 1.4 kB
+script containing the finished HTML — no `whuiy`, no `effect`, no runtime. The
+sale rule in the example runs at build time and its derived price and border
+color are part of the shipped markup.
+
+The remaining cost for a partially dynamic page is honest: the runtime mounts in
+the browser. Only descriptions that do not change erase completely.
 
 ## Packages
 
@@ -102,30 +140,43 @@ Event tokens are named after DOM event types: `Event.Click`,
 
 ## Playground
 
-`examples/playground` is a counter with a theme toggle. Buttons write through
-rules, the label is derived from `Count`, and the DOM renderer patches the text
-node in place. Nothing re-renders a tree.
+`examples/playground` is a counter with a theme toggle and a filtered 500-row
+list. Buttons write through rules, the label is derived from `Count`, typing in
+the search input writes `Query`, and a rule replaces the visible rows through
+`Token.set`.
 
 ```sh
 cd examples/playground && bunx vite
 ```
 
-The same loop is covered by `packages/dom/test/interaction.test.ts`: a click
-changes `Count`, a rule rewrites `Label`, and the `<p>` keeps its identity while
-its text changes.
+The same loops are covered by `packages/dom/test`: a click changes `Count` and
+the `<p>` keeps its identity while its text changes; filtering the playground
+list updates the visible rows.
 
 ## Performance
 
-There is a benchmark in `packages/dom/bench` (`bunx vitest bench dom/bench
---project dom`). It measures one value write through the runtime, the graph
-change stream, and the DOM patch.
+Benchmarks live in `packages/dom/bench` and `packages/react/bench`:
 
-Current numbers on this machine: about 500 writes per second, 2 ms mean, 0.67 ms
-best case. Adapters now subscribe through a synchronous listener list
-(`runtime.subscribe`) instead of the Effect stream, which took a write from 26 ms
-to 2 ms. That is still above the target of 1 ms mean for a single value write.
-The remaining cost is `Effect.runSync` plus the drain per write; the next step is
-an imperative write path with the Effect API kept as a facade over it.
+```sh
+bunx vitest bench dom/bench --project dom
+bunx vitest bench react/bench --project dom
+```
+
+On a 1000-row list, on this machine, under happy-dom:
+
+| Operation                             | Whuiy  | React 19 |
+| ------------------------------------- | ------ | -------- |
+| update one text node                  | 8.7 µs | —        |
+| update one row through a derived rule | 20 µs  | 10 ms    |
+| mount and project 1000 rows           | 87 ms  | 114 ms   |
+
+The React row is a `memo`-wrapped row whose props change; the plain React row
+update is 22 ms. Raw `textNode.data` assignment is 0.5 µs, so the Whuiy number
+is the cost of the write path and one DOM patch, not a claim of free work.
+
+The remaining costs, stated plainly: the engine executes rule generators through
+`Effect.runSyncExit` once per rule invocation, and mounting a list projects every
+row. Neither is a framework problem, but neither is done being optimized.
 
 ## Development
 
@@ -134,6 +185,6 @@ bun install
 bun run check   # format, generated files, lint, tests, docs, build
 ```
 
-Lint and formatting follow the shared Lounge configuration. The complexity
-limit is three per function, and the Effect rules are errors. A lint failure is
-treated as a design problem, not a formatting annoyance.
+Lint and formatting follow the shared Lounge configuration: complexity 3 per
+function, the Effect rules as errors, and the readability plugins. A lint failure
+is treated as a design problem, not a formatting annoyance.

@@ -37,6 +37,19 @@
         "vite": "^8.2.2",
       },
     },
+    "examples/static": {
+      "name": "@whuiy/static",
+      "dependencies": {
+        "@whuiy/dom": "workspace:*",
+        "comptime": "^0.1.0",
+        "effect": "4.1.0",
+        "whuiy": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^7",
+        "vite": "^8.2.2",
+      },
+    },
     "packages": {
       "name": "whuiy-packages",
       "devDependencies": {
@@ -446,6 +459,8 @@
     "@whuiy/playground": ["@whuiy/playground@workspace:examples/playground"],
 
     "@whuiy/react": ["@whuiy/react@workspace:packages/react"],
+
+    "@whuiy/static": ["@whuiy/static@workspace:examples/static"],
 
     "argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
 
