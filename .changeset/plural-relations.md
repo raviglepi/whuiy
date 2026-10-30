@@ -22,4 +22,4 @@ Relations are plural: a token can hold every relation, not only the last one per
 - Rules re-evaluate only the nodes touched by a change, so a write inside one
   list row does not re-run rules for the other rows.
 - The write path runs synchronously behind the Effect facade; a direct value
-  write in a 1000-row DOM list dropped from ~2.5 ms to ~9 µs on this machine.
+  write in a 1000-row DOM list dropped from ~2.5 ms to ~10 µs on this machine.

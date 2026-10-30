@@ -185,13 +185,14 @@ bunx vitest bench dom/bench --project dom
 bunx vitest bench react/bench --project dom
 ```
 
-On a 1000-row list, on this machine, under happy-dom:
+On a 1000-row list, on this machine, under happy-dom (host load made runs vary
+1.5–2×; the update paths stayed under 50 µs across runs):
 
-| Operation                             | Whuiy  | React 19 |
-| ------------------------------------- | ------ | -------- |
-| update one text node                  | 8.7 µs | —        |
-| update one row through a derived rule | 20 µs  | 10 ms    |
-| mount and project 1000 rows           | 87 ms  | 114 ms   |
+| Operation                             | Whuiy     | React 19 |
+| ------------------------------------- | --------- | -------- |
+| update one text node                  | 9–14 µs   | —        |
+| update one row through a derived rule | 20–44 µs  | 10 ms    |
+| mount and project 1000 rows           | 87–150 ms | 114 ms   |
 
 The React row is a `memo`-wrapped row whose props change; the plain React row
 update is 22 ms. Raw `textNode.data` assignment is 0.5 µs, so the Whuiy number
