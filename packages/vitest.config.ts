@@ -1,13 +1,20 @@
 import {defineConfig, configDefaults} from "vitest/config";
 
 import {comptime} from "comptime/vite";
-import typesugar from "unplugin-typesugar/vite";
 
 export default defineConfig({
-  plugins: [
-    // `typesugar` must run before `comptime`
-    typesugar({strict: true}),
-    comptime(),
-  ],
-  test: {exclude: [...configDefaults.exclude, "bun.test.ts"]},
+  plugins: [comptime()],
+  test: {
+    exclude: [...configDefaults.exclude, "bun.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {name: "unit", include: ["core/test/**/*.test.ts", "react/test/**/*.test.ts*"]},
+      },
+      {
+        extends: true,
+        test: {name: "dom", environment: "happy-dom", include: ["dom/test/**/*.test.ts"]},
+      },
+    ],
+  },
 });

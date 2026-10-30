@@ -5,9 +5,10 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./primitives": "./src/primitives.ts"
   },
   "dependencies": {
-    "effect": "^4.0.0-rc"
+    "effect": "4.1.0"
   }
 }

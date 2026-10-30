@@ -8,6 +8,8 @@
   "type": "module",
   "scripts": {
     "prepare": "effect-tsgo patch --oxlint --tsrs --no-typescript",
+    "generate": "bun tools/generate-primitives.ts",
+    "generate:check": "bun tools/generate-primitives.ts --check",
     "lint": "oxlint --disable-nested-config",
     "fix": "cd packages && bun lint -- --fix",
     "fmt": "oxfmt --write '!tools/**/*.*/**/*'",
@@ -15,24 +17,25 @@
     "test": "cd packages && vitest run",
     "build": "pnpm --filter './packages/*' exec bun vite build",
     "docs": "pnpm --filter './packages/*' exec bun docgen",
-    "check": "bun fmt:check && bun lint && bun run test && bun docs && bun run build",
+    "check": "bun fmt:check && bun generate:check && bun lint && bun run test && bun docs && bun run build",
     "release": "changeset publish"
   },
   "dependencies": {
-    "effect": "^4.0.0-rc"
+    "effect": "4.1.0"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.1",
-    "@effect/docgen": "^4.0.0-rc",
+    "@effect/docgen": "4.1.0",
     "@effect/tsgo": "^0.63.0",
-    "@effect/vitest": "^4.0.0-rc",
-    "@oxlint/plugins": "1.80.0",
+    "@effect/vitest": "4.1.0",
+    "@oxlint/plugins": "1.90.0",
     "@types/bun": "latest",
+    "comptime": "0.1.0",
     "oxfmt": "^0.75.0",
     "oxlint": "1.90.0",
     "oxlint-tsgolint": "7.0.2005",
     "tsrs": "0.20.1-ts7.1.0-beta",
-    "type-fest": "^5.9.0",
+    "type-fest": "^5.10.0",
     "typescript": "^7",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

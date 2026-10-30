@@ -4,7 +4,7 @@ import type {ErrorReporter} from "./errors.tsx";
 
 import {RegistryProvider, useAtomSuspense} from "@effect/atom-react";
 import {Effect, Fiber, Layer, Scope, Stream} from "effect";
-import {Atom} from "effect/unstable/reactivity";
+import {Atom} from "effect/reactivity";
 
 import {createElement, memo, useMemo} from "react";
 import {isTokenInstance} from "whuiy";

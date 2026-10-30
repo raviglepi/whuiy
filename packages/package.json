@@ -4,9 +4,8 @@
   "type": "module",
   "devDependencies": {
     "comptime": "^0.1.0",
-    "typescript": "^6",
-    "typesugar": "^0.1.1",
-    "unplugin-typesugar": "^0.1.1",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
   }

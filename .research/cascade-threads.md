@@ -6,14 +6,14 @@ Read-only research note, 2026-10-30. Code state: b206f98 on feat/build-cascade-u
 
 The Cascade project (7dbf7d8d-8b97-404c-bbb2-ccf1efaa9ad0) holds 27 threads. Six carry user-authored design statements:
 
-| thread | date | what it settles |
-|---|---|---|
-| 7c0ad32c-e777-4d72-a6af-2396182022eb | 2026-10-30 | the takeover brief: precompile target, comptime, typeInfo, Canon framing |
-| e487f0ca-a206-4a8b-a71e-b22b7ece1663 | 2026-09-12 | what compiling rules means, and the per-element reframing |
+| thread                               | date       | what it settles                                                                   |
+| ------------------------------------ | ---------- | --------------------------------------------------------------------------------- |
+| 7c0ad32c-e777-4d72-a6af-2396182022eb | 2026-10-30 | the takeover brief: precompile target, comptime, typeInfo, Canon framing          |
+| e487f0ca-a206-4a8b-a71e-b22b7ece1663 | 2026-09-12 | what compiling rules means, and the per-element reframing                         |
 | 94510784-6c73-477c-8168-ca214f90cc92 | 2026-09-10 | style typing, then the "just trust typescript" reversal, legacy primitive removal |
-| 3f30fc54-4502-47a7-b8b1-3c374e0a7537 | 2026-09-12 | Cascade to Whuiy rename, breaking 0.3.0 |
-| 7e29c1dc-9744-4a8c-8ba5-1db5b53fab78 | 2026-09-12 | @whuiy/dom and shared primitives ownership (WhUIy project) |
-| 92083e55-7293-4b02-aa86-b8a728132897 | 2026-09-16 | generated tokens require the build-time plugins (WhUIy project) |
+| 3f30fc54-4502-47a7-b8b1-3c374e0a7537 | 2026-09-12 | Cascade to Whuiy rename, breaking 0.3.0                                           |
+| 7e29c1dc-9744-4a8c-8ba5-1db5b53fab78 | 2026-09-12 | @whuiy/dom and shared primitives ownership (WhUIy project)                        |
+| 92083e55-7293-4b02-aa86-b8a728132897 | 2026-09-16 | generated tokens require the build-time plugins (WhUIy project)                   |
 
 The remaining Cascade threads are "what is this project for" Q&A (d1df10b8, dc5f2f61, 73efbe78, 0644b37f, 4fa8244c, cc9e69d7, 2f1a3a30, 9f3a48da, 26066455, 7cf23c93, 4aaa6502, 861c4fd8, 6be14a07, 2078693f, 1ac71bc6). The user asks once and an assistant tours the code. They are snapshots of the API at a date, not statements of intent. Same for ea2865f5 (CI fix) and 89ceb0f3 (diverged branch).
 
@@ -73,12 +73,12 @@ The assistant's reply (pos 7) opens "Exactly. That's the right mental model" and
 - Open caveat: arbitrary generator bodies stay dynamic Effect code; only their scheduling becomes local and constant-sized.
 - Later, optional declarative tier for full erasure:
 
-    const rules = Cascade.rules({
-      disabledButton: Cascade.when(Button(Disabled())).set(
-        Style.Opacity(0.5),
-        Style.Cursor("not-allowed"),
-      ),
-    })
+  const rules = Cascade.rules({
+  disabledButton: Cascade.when(Button(Disabled())).set(
+  Style.Opacity(0.5),
+  Style.Cursor("not-allowed"),
+  ),
+  })
 
   lowering to button.style.opacity = "0.5"; button.style.cursor = "not-allowed".
 
@@ -89,7 +89,7 @@ The assistant's reply (pos 7) opens "Exactly. That's the right mental model" and
 - Specified by the user: plain Effect for state, plain HTML for output, no VDOM, no rerender step, rules erased where static.
 - Accepted from the assistant: per-element guard functions and direct DOM property/listener patches, plus retained DOM nodes with an identity/patching model.
 - Not specified anywhere: the packaging. Is it Cascade.compile() at runtime, a comptime(...) wrapper, a Vite plugin, or a separate @cascade/compiler? The user says "wrap every rule and stuff into comptime(...)"; the assistant sketches Cascade.compile(new Cascade()...). Neither was chosen.
-- Not built: there is no compile() and no compiler package in this repo (rg over packages/*/src and packages/*/test finds nothing). The only build-time transform is the primitive-family generation described in 1a.
+- Not built: there is no compile() and no compiler package in this repo (rg over packages/_/src and packages/_/test finds nothing). The only build-time transform is the primitive-family generation described in 1a.
 
 Also non-goals both parties agreed on: a dynamic token graph cannot become zero-cost; DOM listeners, node identity, cleanup and arbitrary handlers still run; invalidation still needs dependency information at runtime.
 
@@ -119,6 +119,7 @@ pos 0:
 > "for typeinfo, consider typescript 7.1 content mappers, since those didnt exist when i started the idea and may be better than typefest typeInfo, but thats on your decision"
 
 Facts:
+
 - type-fest 5.9 contains no typeInfo (checked the installed package). type-fest is used as pure type utilities: PascalCase in primitives.ts, IsEqual and IsNever in core/rules.ts. The phrase "typefest typeInfo" most likely means typesugar's reflection API, since it is named earlier in the same sentence pair.
 - The typeInfo in the code is typesugar's comptime reflection: typeInfo<T>().fields, used inside comptime(() => ...) to enumerate CSS properties, on* handlers and HTML tags.
 - TS 7.1 exists only as beta/next builds at the time of writing (7.1.0-beta, 7.1.0-dev.*); this workspace pins typescript ^7 at the root and ^6 in packages. No thread evaluates content mappers, and no code uses them. It is an explicitly delegated open decision ("thats on your decision"), not a choice.
@@ -168,20 +169,20 @@ Cascade.rules({...}) with Cascade.when(...).set(...) appears once, at e487f0ca p
 
 ## 4. Rejected, removed, unfinished
 
-| item | state | evidence |
-|---|---|---|
-| Zod-style compiler of arbitrary rule bodies | rejected as the general answer; handlers stay dynamic | e487f0ca pos 3, 7 |
-| Global candidate-rule scan over every live node | rejected in favor of per-element rule plans | e487f0ca pos 6-7 |
-| Cascade.compile() and any @cascade/compiler package | never built | e487f0ca, rg over packages |
-| Structured GraphChange records instead of Stream<void> | proposed, not built | e487f0ca pos 5 |
-| Declarative Cascade.rules / when / set tier | sketch only | e487f0ca pos 7 |
-| @whuiy/dom | built in the WhUIy project, absent from main here | 7e29c1dc, packages/ |
-| Duplicated per-adapter primitives | removed; vocabulary moved to core | 7e29c1dc pos 22-24, 53 |
-| Semantic Size/Color wrappers in Style tokens | built, then rejected outright | 94510784 pos 13-19, 7e29c1dc pos 22 |
-| Row, Column, Text, Image, ImageSource | deleted with their projection path and demo | 94510784 pos 20-26 |
-| Derived CSS classifier over React.CSSProperties | abandoned: the CSS types cannot distinguish size/color from open strings | 94510784 pos 0-9 |
-| TS 7.1 content mappers for typeInfo | floated, never evaluated | 7c0ad32c pos 0 |
-| Cascade name | renamed Whuiy, breaking minor 0.3.0 with a changeset | 3f30fc54 pos 0, 7, 11 |
+| item                                                   | state                                                                    | evidence                            |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ | ----------------------------------- |
+| Zod-style compiler of arbitrary rule bodies            | rejected as the general answer; handlers stay dynamic                    | e487f0ca pos 3, 7                   |
+| Global candidate-rule scan over every live node        | rejected in favor of per-element rule plans                              | e487f0ca pos 6-7                    |
+| Cascade.compile() and any @cascade/compiler package    | never built                                                              | e487f0ca, rg over packages          |
+| Structured GraphChange records instead of Stream<void> | proposed, not built                                                      | e487f0ca pos 5                      |
+| Declarative Cascade.rules / when / set tier            | sketch only                                                              | e487f0ca pos 7                      |
+| @whuiy/dom                                             | built in the WhUIy project, absent from main here                        | 7e29c1dc, packages/                 |
+| Duplicated per-adapter primitives                      | removed; vocabulary moved to core                                        | 7e29c1dc pos 22-24, 53              |
+| Semantic Size/Color wrappers in Style tokens           | built, then rejected outright                                            | 94510784 pos 13-19, 7e29c1dc pos 22 |
+| Row, Column, Text, Image, ImageSource                  | deleted with their projection path and demo                              | 94510784 pos 20-26                  |
+| Derived CSS classifier over React.CSSProperties        | abandoned: the CSS types cannot distinguish size/color from open strings | 94510784 pos 0-9                    |
+| TS 7.1 content mappers for typeInfo                    | floated, never evaluated                                                 | 7c0ad32c pos 0                      |
+| Cascade name                                           | renamed Whuiy, breaking minor 0.3.0 with a changeset                     | 3f30fc54 pos 0, 7, 11               |
 
 Status of the DOM package deserves emphasis: it shipped in the WhUIy project with generated primitive families, Happy DOM tests and consolidated core ownership (7e29c1dc pos 53), but main here has only core and react. Porting it is unfinished work, not a rejected idea.
 

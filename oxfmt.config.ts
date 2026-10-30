@@ -16,7 +16,7 @@ export default defineConfig({
     customGroups: [
       {groupName: "value-whuiy", elementNamePattern: ["whuiy"], modifiers: ["value"]},
       {groupName: "type-whuiy", elementNamePattern: ["whuiy"], modifiers: ["type"]},
-      {groupName: "compile", elementNamePattern: ["comptime", "typesugar"]},
+      {groupName: "compile", elementNamePattern: ["comptime"]},
       {groupName: "config", elementNamePattern: ["vite", "vitest/config"]},
       {groupName: "test", elementNamePattern: ["vitest"]},
       {groupName: "test-effect", elementNamePattern: ["@effect/vitest"]},
