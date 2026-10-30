@@ -6,7 +6,19 @@ export {
   /** @since 0.1.0 */
   Whuiy,
 } from "./whuiy.ts";
+export {
+  /** @since 0.4.0 */
+  compileRules,
+} from "./compile.ts";
 export type {
+  /** @since 0.4.0 */
+  RulePlan,
+  /** @since 0.4.0 */
+  RuleProgram,
+} from "./compile.ts";
+export type {
+  /** @since 0.4.0 */
+  GraphChange,
   /** @since 0.1.0 */
   WhuiyRuntime,
   /** @since 0.1.0 */
