@@ -4,7 +4,7 @@ import type {TokenDefinition, TokenDefinitionRef} from "./token.ts";
 import {Effect} from "effect";
 
 import {elementTags, eventTypes, styleProperties} from "./generated/platform.ts";
-import {Token} from "./token.ts";
+import {contentDefinitions, Token} from "./token.ts";
 
 /** @since 0.4.0 */
 export type StyleProperty = Exclude<
@@ -116,6 +116,11 @@ export const Style = createFamily<StyleFamily>(createDecoratorEntries("style", s
 export const Event = createFamily<EventFamily>(createDecoratorEntries("event", eventDescriptors));
 /** @since 0.4.0 */
 export const Element = createFamily<ElementFamily>(createElementEntries(elementDescriptors));
+
+/** @internal @since 0.4.0 */
+export function isContentDefinition(value: TokenDefinitionRef): boolean {
+  return contentDefinitions.has(Object(value));
+}
 
 /** @internal @since 0.4.0 */
 export function getDecoratorMetadata(

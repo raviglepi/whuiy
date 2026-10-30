@@ -7,7 +7,7 @@ import {createDomRenderer} from "../src/index.ts";
 
 const Row = Token("Row")();
 const Label = Token("Label")<string>();
-const Text = Token("Text")<string>();
+const Text = Token("Text").content<string>();
 const Page = Token("Page")();
 const ROWS = 1000;
 const noop = (): undefined => undefined;

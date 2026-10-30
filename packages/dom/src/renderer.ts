@@ -5,7 +5,7 @@ import type {ErrorReporter} from "./errors.ts";
 
 import {Cause, Effect, Exit, Fiber, Predicate, Schema, Stream} from "effect";
 
-import {getDecoratorMetadata, getElementMetadata} from "whuiy/primitives";
+import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {ProjectionError} from "./errors.ts";
 
 type Handler = (event: Event) => Effect.Effect<void>;
@@ -23,6 +23,7 @@ interface Context {
   readonly document: Document;
   readonly entries: Map<number, Entry>;
   readonly fibers: Set<Fiber.Fiber<void, never>>;
+  readonly known: Set<number>;
   readonly owners: Map<number, StyleOwner>;
   readonly reportError: ErrorReporter;
 }
@@ -94,6 +95,7 @@ function isDecorator(token: LiveToken): boolean {
 function decorate(token: LiveToken, element: HTMLElement, ctx: Context): void {
   const decorator = getDecoratorMetadata(token.definition);
   if (decorator === undefined) return;
+  ctx.known.add(token.id);
   if (decorator.kind === "event") attachListener(token, element, decorator.property, ctx);
   else decorateStyle(token, element, decorator.property, ctx);
 }
@@ -125,15 +127,18 @@ function projectElement(token: LiveToken, tag: string, ctx: Context): HTMLElemen
   return element;
 }
 
+function projectText(token: LiveToken, ctx: Context): readonly Node[] {
+  const value = token.value();
+  const node = ctx.document.createTextNode(Schema.is(StyleValue)(value) ? String(value) : "");
+  ctx.entries.set(token.id, {kind: "text", node});
+  return [node];
+}
+
 function project(token: LiveToken, ctx: Context): readonly Node[] {
+  ctx.known.add(token.id);
   const element = getElementMetadata(token.definition);
   if (element !== undefined) return [projectElement(token, element.tag, ctx)];
-  const value = token.value();
-  if (Schema.is(StyleValue)(value)) {
-    const node = ctx.document.createTextNode(String(value));
-    ctx.entries.set(token.id, {kind: "text", node});
-    return [node];
-  }
+  if (isContentDefinition(token.definition)) return projectText(token, ctx);
   return token.tokens().flatMap(child => project(child, ctx));
 }
 
@@ -150,17 +155,26 @@ function patchStyleOwner(token: LiveToken, owner: StyleOwner): void {
   applyStyle(token, owner.element, owner.property);
 }
 
-function patch(token: LiveToken, ctx: Context): boolean {
+function patchKnown(token: LiveToken, ctx: Context): void {
   const owner = ctx.owners.get(token.id);
-  if (owner !== undefined) return (patchStyleOwner(token, owner), true);
+  if (owner !== undefined) {
+    patchStyleOwner(token, owner);
+    return;
+  }
   const entry = ctx.entries.get(token.id);
-  if (entry === undefined) return false;
+  if (entry === undefined) return;
   patchEntry(token, entry, ctx);
+}
+
+function patch(token: LiveToken, ctx: Context): boolean {
+  if (!ctx.known.has(token.id)) return false;
+  patchKnown(token, ctx);
   return true;
 }
 
 function clearContext(ctx: Context): void {
   ctx.entries.clear();
+  ctx.known.clear();
   ctx.owners.clear();
 }
 
@@ -207,7 +221,6 @@ function interrupt(fibers: ReadonlySet<Fiber.Fiber<void, never>>): void {
 export function createDomRenderer(options: DomRendererOptions): DomRenderer {
   return {
     render(parent, ...roots) {
-      const mounted = Effect.runSync(options.runtime.mount(...roots));
       const fibers = new Set<Fiber.Fiber<void, never>>();
       let disposed = false;
       let owned: readonly Node[] = [];
@@ -215,9 +228,16 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         document: parent.ownerDocument,
         entries: new Map(),
         fibers,
+        known: new Set(),
         owners: new Map(),
         reportError: options.reportError,
       };
+      const failures = Effect.runFork(
+        Stream.runForEach(options.runtime.ruleFailures, failure =>
+          Effect.sync(() => options.reportError({failure, kind: "rule"})),
+        ),
+      );
+      const mounted = Effect.runSync(options.runtime.mount(...roots));
       const rebuild = (): void => {
         clearContext(ctx);
         removeAll(owned);
@@ -234,11 +254,6 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         if (disposed) return;
         update(change);
       });
-      const failures = Effect.runFork(
-        Stream.runForEach(options.runtime.ruleFailures, failure =>
-          Effect.sync(() => options.reportError({failure, kind: "rule"})),
-        ),
-      );
       const teardown = (): void => {
         disposed = true;
         removeAll(owned);

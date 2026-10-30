@@ -12,6 +12,11 @@ Relations are plural: a token can hold every relation, not only the last one per
   relation is ambiguous; `all(target)` returns every match.
 - Single-valued definitions replace instead of accumulate and are declared with
   `Token("Opacity").single()`. Generated `Style` and `Event` tokens are single.
+- Content is explicit: `Token("Text").content()` projects its value as a text
+  node through every adapter, so state tokens such as `Count(0)` no longer leak
+  into the DOM as text.
+- The DOM renderer reports rule failures that happen during the initial mount
+  and patches data-token changes instead of rebuilding the projection.
 - Rules re-evaluate only the nodes touched by a change, so a write inside one
   list row does not re-run rules for the other rows.
 - The write path runs synchronously behind the Effect facade; a direct value

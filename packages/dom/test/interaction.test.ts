@@ -7,8 +7,8 @@ import {Element, Event, Style, Token, Whuiy} from "whuiy";
 import {createDomRenderer} from "../src/index.ts";
 
 const Count = Token("Count")<number>();
-const Label = Token("Label")<string>();
-const Text = Token("Text")<string>();
+const Label = Token("Label").content<string>();
+const Text = Token("Text").content<string>();
 const Counter = Token("Counter")();
 const Increment = Token("Increment")();
 

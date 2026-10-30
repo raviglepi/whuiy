@@ -44,7 +44,7 @@ function find(parent: HTMLElement, selector: string): HTMLElement {
 
 describe("DOM patching", () => {
   it("updates text without replacing the element", () => {
-    const Text = Token("Text")<string>();
+    const Text = Token("Text").content<string>();
     const Panel = Token("Panel")();
     let live: LiveToken | undefined;
     const ui = new Whuiy().rule(Panel(), function* (panel) {

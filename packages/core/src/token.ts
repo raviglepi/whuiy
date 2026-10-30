@@ -7,6 +7,8 @@ const instances = new WeakSet<object>();
 const aliases = new WeakSet<object>();
 const exclusions = new WeakSet<object>();
 const singleDefinitions = new WeakSet<object>();
+/** @internal */
+export const contentDefinitions = new WeakSet<object>();
 
 let nextTokenId = 1;
 
@@ -207,9 +209,22 @@ interface TokenDeclaration<Name extends string, Value extends TokenValue> {
    * Declares a single-valued definition: a new relation of this definition
    * replaces the previous one instead of joining it.
    */
-  single<const Defaults extends readonly TokenTerm[] = []>(
+  single<
+    NextValue extends TokenValue = Value extends never ? TokenValue : Value,
+    const Defaults extends readonly TokenTerm[] = [],
+  >(
     ...defaults: [] extends Defaults ? readonly TokenTerm[] : ValidateComposition<never, Defaults>
-  ): TokenDefinition<Name, Value, PositiveDefinitions<Defaults>, NegativeDefinitions<Defaults>>;
+  ): TokenDefinition<Name, NextValue, PositiveDefinitions<Defaults>, NegativeDefinitions<Defaults>>;
+  /**
+   * Declares a content definition: adapters project its value as a text node
+   * instead of treating it as data.
+   */
+  content<
+    NextValue extends TokenValue = Value extends never ? TokenValue : Value,
+    const Defaults extends readonly TokenTerm[] = [],
+  >(
+    ...defaults: [] extends Defaults ? readonly TokenTerm[] : ValidateComposition<never, Defaults>
+  ): TokenDefinition<Name, NextValue, PositiveDefinitions<Defaults>, NegativeDefinitions<Defaults>>;
 }
 
 /** @since 0.1.0 */
@@ -478,7 +493,7 @@ function normalizeTerms(terms: readonly TokenTerm[]): NormalizedTerms {
 function makeDefinition<Name extends string, Value extends TokenValue>(
   name: Name,
   defaults: readonly TokenTerm[],
-  single: boolean,
+  kinds: {readonly content: boolean; readonly single: boolean},
 ): TokenDefinition<Name, Value, TokenDefinitionRef, TokenDefinitionRef> {
   const normalizedDefaults = normalizeTerms(defaults);
   let definition: TokenDefinitionRef;
@@ -510,7 +525,8 @@ function makeDefinition<Name extends string, Value extends TokenValue>(
   });
   definition = callable;
   definitions.add(callable);
-  if (single) singleDefinitions.add(callable);
+  if (kinds.single) singleDefinitions.add(callable);
+  if (kinds.content) contentDefinitions.add(callable);
   // @ts-expect-error SAFETY: the callable parser enforces the public value-first overload at runtime.
   return callable as TokenDefinition<Name, Value, TokenDefinitionRef, TokenDefinitionRef>;
 }
@@ -533,10 +549,12 @@ function createDeclaration<Name extends string, Value extends TokenValue>(
   name: Name,
 ): TokenDeclaration<Name, Value> {
   const declaration = (...defaults: readonly TokenTerm[]) =>
-    makeDefinition<Name, Value>(name, defaults, false);
+    makeDefinition<Name, Value>(name, defaults, {content: false, single: false});
   declaration.of = <NextValue extends TokenValue>() => createDeclaration<Name, NextValue>(name);
   declaration.single = (...defaults: readonly TokenTerm[]) =>
-    makeDefinition<Name, Value>(name, defaults, true);
+    makeDefinition<Name, Value>(name, defaults, {content: false, single: true});
+  declaration.content = (...defaults: readonly TokenTerm[]) =>
+    makeDefinition<Name, Value>(name, defaults, {content: true, single: false});
   // SAFETY: declaration forwards its complete relation tuple to makeDefinition unchanged.
   return declaration as TokenDeclaration<Name, Value>;
 }

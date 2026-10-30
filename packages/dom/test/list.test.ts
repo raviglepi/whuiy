@@ -8,8 +8,8 @@ import {createDomRenderer} from "../src/index.ts";
 
 describe("list projection", () => {
   it("renders one node per sibling and patches only the changed row", () => {
-    const Label = Token("Label")<string>();
-    const Text = Token("Text")<string>();
+    const Label = Token("Label").content<string>();
+    const Text = Token("Text").content<string>();
     const Row = Token("Row")();
     const List = Token("List")();
     let firstRow: LiveToken | undefined;

@@ -91,7 +91,7 @@ function makeProjectionAtom(props: ProjectionProps) {
 }
 
 /** @internal */
-function projectServer({reportError, roots, runtime}: ProjectionProps): readonly ReactElement[] {
+function projectServer({reportError, roots, runtime}: ProjectionProps): readonly ReactNode[] {
   return Effect.runSync(
     Effect.scoped(
       Effect.gen(function* () {
@@ -121,9 +121,7 @@ function projectServer({reportError, roots, runtime}: ProjectionProps): readonly
   );
 }
 
-const ClientProjection = memo(function ClientProjection(
-  props: ProjectionProps,
-): readonly ReactElement[] {
+const ClientProjection = memo(function ClientProjection(props: ProjectionProps): ReactNode {
   const {reportError, roots, runtime} = props;
   const atom = useMemo(
     () => makeProjectionAtom({reportError, roots, runtime}),
@@ -146,7 +144,7 @@ function sameRoots(left: readonly TokenRoot[], right: readonly TokenRoot[]): boo
   return left.every((root, index) => rootId(root) === rootId(right[index]!));
 }
 
-function Projection(props: ProjectionProps): ReactElement | readonly ReactElement[] {
+function Projection(props: ProjectionProps): ReactNode {
   return typeof document === "undefined"
     ? projectServer(props)
     : createElement(ClientProjection, {...props, key: props.roots.map(rootId).join(":")});

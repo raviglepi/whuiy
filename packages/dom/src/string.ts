@@ -4,7 +4,7 @@ import type {LiveToken, TokenRoot} from "whuiy";
 
 import {Effect, Schema} from "effect";
 
-import {getDecoratorMetadata, getElementMetadata} from "whuiy/primitives";
+import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {Whuiy} from "whuiy";
 
 const VOID_TAGS = new Set([
@@ -66,8 +66,8 @@ function renderElement(token: LiveToken, tag: string, children: readonly LiveTok
 function serialize(token: LiveToken): string {
   const element = getElementMetadata(token.definition);
   if (element !== undefined) return renderElement(token, element.tag, token.tokens());
-  const text = textOf(token);
-  return text.length > 0 ? text : parts(token.tokens()).body;
+  if (isContentDefinition(token.definition)) return textOf(token);
+  return parts(token.tokens()).body;
 }
 
 function isEvent(token: LiveToken): boolean {

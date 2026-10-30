@@ -4,7 +4,7 @@ import {Element, Style} from "whuiy/primitives";
 import {Token, Whuiy} from "whuiy";
 import {renderToString} from "../src/string.ts";
 
-const Text = Token("Text")<string>();
+const Text = Token("Text").content<string>();
 
 describe("static HTML rendering", () => {
   it("renders nested elements, styles, and text", () => {

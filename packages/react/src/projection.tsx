@@ -1,10 +1,11 @@
 import type * as React from "react";
+import type {ReactNode} from "react";
 import type {LiveToken, TokenDefinitionRef, TokenValue} from "whuiy";
 
 import {Context, Effect, Predicate, Schema} from "effect";
 
-import {cloneElement, createElement} from "react";
-import {getDecoratorMetadata, getElementMetadata} from "whuiy/primitives";
+import {cloneElement, createElement, isValidElement} from "react";
+import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {ProjectionError} from "./errors.tsx";
 
 type EventHandler = (event: React.SyntheticEvent<HTMLElement>) => Effect.Effect<void>;
@@ -158,7 +159,7 @@ function readStyle(element: React.ReactElement): React.CSSProperties | undefined
 }
 
 function elementHost(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly token: LiveToken;
 }): React.ReactElement | undefined {
   const element = getElementMetadata(options.token.definition);
@@ -182,16 +183,16 @@ function projectContent(options: {
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly path: ReadonlySet<number>;
   readonly relations: readonly LiveToken[];
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   const content = options.relations.filter(token => !isDecorator(token));
   return content.flatMap(token =>
     projectToken({dispatcher: options.dispatcher, path: options.path, token}),
   );
 }
 
-function onlyChild(children: readonly React.ReactElement[]): React.ReactElement {
+function onlyElement(children: readonly ReactNode[]): React.ReactElement | undefined {
   const child = children[0];
-  if (child === undefined) throw new Error("Expected one projected child");
+  if (children.length !== 1 || !isValidElement(child)) return undefined;
   return child;
 }
 
@@ -199,7 +200,7 @@ function decorateHost(options: {
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly host: React.ReactElement;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   return [
     applyDecorators({
       decorators: options.decorators,
@@ -210,28 +211,27 @@ function decorateHost(options: {
 }
 
 function decorateContent(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   if (options.children.length === 0) return [];
   const element =
-    options.children.length === 1
-      ? onlyChild(options.children)
-      : createElement<HostProps>("div", {key: options.token.id}, options.children);
+    onlyElement(options.children) ??
+    createElement<HostProps>("div", {key: options.token.id}, options.children);
   return [
     applyDecorators({decorators: options.decorators, dispatcher: options.dispatcher, element}),
   ];
 }
 
 function decorateChildren(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly host: React.ReactElement | undefined;
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   return options.host === undefined
     ? decorateContent(options)
     : decorateHost({
@@ -241,11 +241,17 @@ function decorateChildren(options: {
       });
 }
 
+function contentOf(token: LiveToken): readonly ReactNode[] {
+  const value = token.value();
+  return Schema.is(StyleValueSchema)(value) ? [String(value)] : [];
+}
+
 function projectToken(options: {
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly path: ReadonlySet<number>;
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
+  if (isContentDefinition(options.token.definition)) return contentOf(options.token);
   const path = nextPath(options.path, options.token);
   const relations = options.token.tokens();
   const decorators = collectDecorators(relations, emptyDecorators);
@@ -263,7 +269,7 @@ function projectToken(options: {
 /** @internal */
 export const project = Effect.fn("ReactProjection.project")(function* (options: {
   readonly roots: readonly LiveToken[];
-}): Effect.fn.Return<readonly React.ReactElement[], never, ListenerDispatcher> {
+}): Effect.fn.Return<readonly ReactNode[], never, ListenerDispatcher> {
   const dispatcher = yield* ListenerDispatcher;
   return options.roots.flatMap(token => projectToken({dispatcher, path: new Set(), token}));
 });
