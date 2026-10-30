@@ -2,6 +2,7 @@
 
 import type {RuntimeRule} from "./rules.ts";
 import type {TokenDefinitionRef, TokenInstanceRef} from "./token.ts";
+
 import {getDetachedNegativeDefinitions, getDetachedRelations} from "./token.ts";
 
 /**
@@ -48,9 +49,7 @@ function collectDependencies(
   return [
     condition.definition,
     ...into,
-    ...getDetachedRelations(condition).flatMap(relation =>
-      collectDependencies(relation, into),
-    ),
+    ...getDetachedRelations(condition).flatMap(relation => collectDependencies(relation, into)),
   ];
 }
 

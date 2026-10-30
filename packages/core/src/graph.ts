@@ -1,6 +1,6 @@
 /** @since 0.1.0 */
 
-import type {RuleProgram} from "./compile.ts";
+import type {RulePlan, RuleProgram} from "./compile.ts";
 import type {WhuiyEffect, WriteAddress} from "./operation.ts";
 import type {RuntimeRule, RuleFailure} from "./rules.ts";
 import type {
@@ -64,6 +64,7 @@ function withoutStackTrace(cause: Cause.Cause<never>): Cause.Cause<never> {
 interface GraphState {
   changed: boolean;
   readonly changedNodes: Set<LiveNode>;
+  readonly changedValueDefinitions: Set<TokenDefinitionRef>;
   draining: boolean;
   readonly nodes: Map<TokenInstanceRef, LiveNode>;
   readonly nodesByDefinition: Map<TokenDefinitionRef, Set<LiveNode>>;
@@ -93,11 +94,7 @@ interface RuleEntry {
 
 type DrainCompletion =
   | {readonly kind: "continue"}
-  | {
-      readonly changed: boolean;
-      readonly kind: "complete";
-      readonly tokens: readonly LiveToken[];
-    };
+  | {readonly changed: boolean; readonly kind: "complete"; readonly tokens: readonly LiveToken[]};
 
 /**
  * Roots retained by a Whuiy runtime.
@@ -301,25 +298,28 @@ class LiveTokenImpl<
 }
 
 class RuleTracker {
-  readonly #activeMatches = new Map<RuntimeRule, Set<number>>();
+  readonly #activeMatches = new Map<RulePlan, Set<number>>();
   readonly #changedDefinitions = new Set<TokenDefinitionRef>();
   readonly #program: RuleProgram;
 
   constructor(program: RuleProgram) {
     this.#program = program;
-    for (const entry of program.plans) this.#activeMatches.set(entry.rule, new Set());
+    for (const entry of program.plans) this.#activeMatches.set(entry, new Set());
   }
 
   markChanged(definition: TokenDefinitionRef): void {
     this.#changedDefinitions.add(definition);
   }
 
-  takeEntries(index: ReadonlyMap<TokenDefinitionRef, ReadonlySet<LiveNode>>): readonly RuleEntry[] {
+  takeEntries(
+    index: ReadonlyMap<TokenDefinitionRef, ReadonlySet<LiveNode>>,
+    changedValueDefinitions: ReadonlySet<TokenDefinitionRef>,
+  ): readonly RuleEntry[] {
     const candidates = this.#takeCandidates();
     const entries: RuleEntry[] = [];
-    for (const [rule, previous] of this.#activeMatches)
-      if (!candidates.has(rule)) continue;
-      else entries.push(...this.#newEntries(index, rule, previous));
+    for (const [plan, previous] of this.#activeMatches)
+      if (!candidates.has(plan.rule)) continue;
+      else entries.push(...this.#newEntries(index, plan, previous, changedValueDefinitions));
     return entries;
   }
 
@@ -333,17 +333,19 @@ class RuleTracker {
 
   #newEntries(
     index: ReadonlyMap<TokenDefinitionRef, ReadonlySet<LiveNode>>,
-    rule: RuntimeRule,
+    plan: RulePlan,
     previous: ReadonlySet<number>,
+    changedValueDefinitions: ReadonlySet<TokenDefinitionRef>,
   ): readonly RuleEntry[] {
-    const nodes = [...(index.get(rule.condition.definition) ?? EMPTY_NODES)].filter(node =>
-      matches(node, rule.condition),
+    const nodes = [...(index.get(plan.condition.definition) ?? EMPTY_NODES)].filter(node =>
+      matches(node, plan.condition),
     );
     const current = new Set(nodes.map(node => node.blueprint.id));
+    const rerun = plan.dependencies.some(definition => changedValueDefinitions.has(definition));
     const entries = nodes
-      .filter(node => current.has(node.blueprint.id) && !previous.has(node.blueprint.id))
-      .map(node => ({node, rule}));
-    this.#activeMatches.set(rule, current);
+      .filter(node => !previous.has(node.blueprint.id) || rerun)
+      .map(node => ({node, rule: plan.rule}));
+    this.#activeMatches.set(plan, current);
     return entries;
   }
 }
@@ -354,6 +356,7 @@ function initialState(program: RuleProgram): GraphState {
   return {
     changed: false,
     changedNodes: new Set<LiveNode>(),
+    changedValueDefinitions: new Set<TokenDefinitionRef>(),
     draining: false,
     nodes: new Map(),
     nodesByDefinition: new Map(),
@@ -559,7 +562,12 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
   const takePendingEntries = Ref.modify(state, current => {
     if (!current.pendingRuleScan) return [undefined, current] as const;
     current.pendingRuleScan = false;
-    return [current.rules.takeEntries(current.nodesByDefinition), current] as const;
+    const entries = current.rules.takeEntries(
+      current.nodesByDefinition,
+      current.changedValueDefinitions,
+    );
+    current.changedValueDefinitions.clear();
+    return [entries, current] as const;
   });
   const completeDrain = Ref.modify(state, (current): readonly [DrainCompletion, GraphState] => {
     if (current.pendingRuleScan) return [{kind: "continue"}, current];
@@ -647,8 +655,12 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     value: TokenValue,
   ) {
     yield* change(current => {
+      const unchanged =
+        node.valueState.kind === "present" && Object.is(node.valueState.value, value);
+      if (unchanged) return;
       node.valueState = {kind: "present", value};
       current.changedNodes.add(node);
+      current.changedValueDefinitions.add(node.blueprint.definition);
       current.rules.markChanged(node.blueprint.definition);
     });
   });

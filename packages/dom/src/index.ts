@@ -10,6 +10,10 @@ export type {
 } from "./errors.ts";
 export {
   /** @since 0.4.0 */
+  renderToString,
+} from "./string.ts";
+export {
+  /** @since 0.4.0 */
   createDomRenderer,
 } from "./renderer.ts";
 export type {

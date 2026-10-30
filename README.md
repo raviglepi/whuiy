@@ -7,8 +7,9 @@ rendered to HTML at build time, so the browser ships markup instead of a
 framework.
 
 ```ts
-import {Token, Whuiy} from "whuiy";
 import {Effect} from "effect";
+
+import {Token, Whuiy} from "whuiy";
 
 const Disabled = Token("Disabled")();
 const Button = Token("Button")();
@@ -70,6 +71,7 @@ and ship the result.
 
 ```ts
 import {comptime} from "comptime";
+
 import {renderToString} from "@whuiy/dom";
 
 const html = comptime(() => renderToString(ui, Button(Disabled(), Opacity(1))));
@@ -80,10 +82,10 @@ The tokens, rules, and runtime for that subtree never reach the browser.
 
 ## Packages
 
-| Package | What it does |
-| --- | --- |
-| `whuiy` | Tokens, rules, the graph runtime, and the rule compiler |
-| `@whuiy/dom` | Retained-DOM rendering and static HTML |
+| Package        | What it does                                              |
+| -------------- | --------------------------------------------------------- |
+| `whuiy`        | Tokens, rules, the graph runtime, and the rule compiler   |
+| `@whuiy/dom`   | Retained-DOM rendering and static HTML                    |
 | `@whuiy/react` | React projection, error boundary, and atom-backed updates |
 
 ## Vocabulary
