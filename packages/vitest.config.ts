@@ -9,7 +9,11 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: {name: "unit", include: ["core/test/**/*.test.ts", "react/test/**/*.test.ts*"]},
+        test: {
+          name: "unit",
+          exclude: ["**/*.bench.ts"],
+          include: ["core/test/**/*.test.ts", "react/test/**/*.test.ts*"],
+        },
       },
       {
         extends: true,

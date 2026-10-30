@@ -100,6 +100,34 @@ Event tokens are named after DOM event types: `Event.Click`,
 `Style.BackgroundColor`, `Style.FlexWrap`. Element tokens cover
 `HTMLElementTagNameMap`: `Element.Div`, `Element.Button`, `Element.Dialog`.
 
+## Playground
+
+`examples/playground` is a counter with a theme toggle. Buttons write through
+rules, the label is derived from `Count`, and the DOM renderer patches the text
+node in place. Nothing re-renders a tree.
+
+```sh
+cd examples/playground && bunx vite
+```
+
+The same loop is covered by `packages/dom/test/interaction.test.ts`: a click
+changes `Count`, a rule rewrites `Label`, and the `<p>` keeps its identity while
+its text changes.
+
+## Performance
+
+There is a benchmark in `packages/dom/bench` (`bunx vitest bench dom/bench
+--project dom`). It measures one value write through the runtime, the graph
+change stream, and the DOM patch.
+
+Current numbers on this machine: about 37 writes per second, 26 ms mean, 1.7 ms
+best case. That is not acceptable. The cost is the Effect stream hop and drain
+per write, not the DOM patch. The next performance step is a synchronous change
+channel for adapters (a `Ref`-backed listener list instead of
+`SubscriptionRef` plus `Stream`), which should take a write under a millisecond.
+Mount and projection throughput are not measured correctly yet; the bench file
+needs a per-iteration runtime so the comparison against hand-written DOM holds.
+
 ## Development
 
 ```sh
