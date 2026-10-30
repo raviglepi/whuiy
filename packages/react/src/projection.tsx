@@ -30,7 +30,7 @@ export class ListenerDispatcher extends Context.Service<
       readonly tokenId: number;
     }) => Effect.Effect<void>;
   }
->()("@whuiy/react/ListenerDispatcher") {}
+>()("@whuiy/react/projection/ListenerDispatcher") {}
 
 const emptyDecorators: Decorators = {events: new Map(), style: {}};
 function reads(token: LiveToken, definition: TokenDefinitionRef): TokenValue {
