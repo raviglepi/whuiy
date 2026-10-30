@@ -23,6 +23,8 @@ export interface RulePlan {
   readonly name: string;
   readonly negatives: readonly TokenDefinitionRef[];
   readonly rule: RuntimeRule;
+  /** Definitions that make this rule a candidate when any of them changes. */
+  readonly watched: readonly TokenDefinitionRef[];
 }
 
 /**
@@ -53,6 +55,17 @@ function collectDependencies(
   ];
 }
 
+function collectNegatives(
+  condition: TokenInstanceRef,
+  into: readonly TokenDefinitionRef[],
+): readonly TokenDefinitionRef[] {
+  return [
+    ...getDetachedNegativeDefinitions(condition),
+    ...into,
+    ...getDetachedRelations(condition).flatMap(relation => collectNegatives(relation, into)),
+  ];
+}
+
 function uniqueDefinitions(
   definitions: readonly TokenDefinitionRef[],
 ): readonly TokenDefinitionRef[] {
@@ -60,12 +73,14 @@ function uniqueDefinitions(
 }
 
 function plan(rule: RuntimeRule): RulePlan {
+  const dependencies = uniqueDefinitions(collectDependencies(rule.condition, []));
   return {
     condition: rule.condition,
-    dependencies: uniqueDefinitions(collectDependencies(rule.condition, [])),
+    dependencies,
     name: rule.name,
     negatives: getDetachedNegativeDefinitions(rule.condition),
     rule,
+    watched: uniqueDefinitions([...dependencies, ...collectNegatives(rule.condition, [])]),
   };
 }
 
@@ -80,7 +95,7 @@ function appendPlan(
 function indexPlans(plans: readonly RulePlan[]): ReadonlyMap<TokenDefinitionRef, RulePlan[]> {
   const index = new Map<TokenDefinitionRef, RulePlan[]>();
   for (const entry of plans)
-    for (const definition of entry.dependencies) appendPlan(index, definition, entry);
+    for (const definition of entry.watched) appendPlan(index, definition, entry);
   return index;
 }
 

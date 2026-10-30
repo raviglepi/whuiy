@@ -6,6 +6,7 @@ const definitions = new WeakSet<object>();
 const instances = new WeakSet<object>();
 const aliases = new WeakSet<object>();
 const exclusions = new WeakSet<object>();
+const singleDefinitions = new WeakSet<object>();
 
 let nextTokenId = 1;
 
@@ -129,29 +130,10 @@ type CompositionConflict<
   Names<NegativeDefinitions<Terms>> | ExcludedNames<Existing | PositiveDefinitions<Terms>>
 >;
 
-type TermDefinition<Term> =
-  ExpandAlias<Term> extends infer Expanded
-    ? Expanded extends TokenInstanceRef
-      ? DefinitionOf<Expanded>
-      : never
-    : never;
-
-type DuplicateNames<
+type CompositionProblem<
+  Existing extends TokenDefinitionRef,
   Terms extends readonly TokenTerm[],
-  Seen extends string = never,
-> = Terms extends readonly [infer First, ...infer Rest extends readonly TokenTerm[]]
-  ? First extends NotTerm
-    ? DuplicateNames<Rest, Seen>
-    : Names<TermDefinition<First>> extends infer Name extends string
-      ? Name extends Seen
-        ? Name
-        : DuplicateNames<Rest, Seen | Name>
-      : never
-  : never;
-
-type CompositionProblem<Existing extends TokenDefinitionRef, Terms extends readonly TokenTerm[]> =
-  | CompositionConflict<Existing, Terms>
-  | DuplicateNames<Terms>;
+> = CompositionConflict<Existing, Terms>;
 
 type ValidateComposition<
   Existing extends TokenDefinitionRef,
@@ -221,6 +203,13 @@ interface TokenDeclaration<Name extends string, Value extends TokenValue> {
     ...defaults: [] extends Defaults ? readonly TokenTerm[] : ValidateComposition<never, Defaults>
   ): TokenDefinition<Name, NextValue, PositiveDefinitions<Defaults>, NegativeDefinitions<Defaults>>;
   of<NextValue extends TokenValue>(): TokenDeclaration<Name, NextValue>;
+  /**
+   * Declares a single-valued definition: a new relation of this definition
+   * replaces the previous one instead of joining it.
+   */
+  single<const Defaults extends readonly TokenTerm[] = []>(
+    ...defaults: [] extends Defaults ? readonly TokenTerm[] : ValidateComposition<never, Defaults>
+  ): TokenDefinition<Name, Value, PositiveDefinitions<Defaults>, NegativeDefinitions<Defaults>>;
 }
 
 /** @since 0.1.0 */
@@ -257,6 +246,16 @@ export interface LiveToken<
     Root,
     readonly [...Path, DefinitionName<DefinitionOf<Pattern>>]
   >;
+  all<Target extends TokenDefinitionRef>(
+    target: Target,
+  ): readonly LiveToken<Target, Root, readonly [...Path, DefinitionName<Target>]>[];
+  all<Pattern extends TokenInstanceRef>(
+    pattern: Pattern,
+  ): readonly LiveToken<
+    DefinitionOf<Pattern>,
+    Root,
+    readonly [...Path, DefinitionName<DefinitionOf<Pattern>>]
+  >[];
   hasValue(): boolean;
   pipe<Result>(operation: (token: this) => Result): Result;
   set<const Terms extends readonly TokenRoot[]>(
@@ -392,6 +391,11 @@ export function isTokenInstance(value: TokenTerm): value is TokenInstanceRef {
   return isInstance(value);
 }
 
+/** @internal */
+export function isSingleDefinition(value: TokenDefinitionRef): boolean {
+  return singleDefinitions.has(Object(value));
+}
+
 function isAlias(value: TokenTerm): value is TokenAlias {
   return aliases.has(Object(value));
 }
@@ -447,11 +451,11 @@ function cloneRelation(term: TokenInstanceRef | TokenAlias): TokenInstanceRef {
   return isAlias(term) ? cloneInstance(term.instance) : term;
 }
 
-function replaceRelation(relations: TokenInstanceRef[], incoming: TokenInstanceRef): void {
-  const retained = relations.filter(
-    existing =>
-      existing.definition !== incoming.definition &&
-      !definitionsConflict(existing.definition, incoming.definition),
+function appendRelation(relations: TokenInstanceRef[], incoming: TokenInstanceRef): void {
+  const retained = relations.filter(existing =>
+    existing.definition === incoming.definition
+      ? !isSingleDefinition(incoming.definition)
+      : !definitionsConflict(existing.definition, incoming.definition),
   );
   retained.push(incoming);
   relations.splice(0, relations.length, ...retained);
@@ -466,7 +470,7 @@ function normalizeTerms(terms: readonly TokenTerm[]): NormalizedTerms {
       continue;
     }
     // SAFETY: Not terms return from this loop above, leaving only instances and aliases.
-    replaceRelation(relations, cloneRelation(term as TokenInstanceRef | TokenAlias));
+    appendRelation(relations, cloneRelation(term as TokenInstanceRef | TokenAlias));
   }
   return {negatives, relations};
 }
@@ -474,6 +478,7 @@ function normalizeTerms(terms: readonly TokenTerm[]): NormalizedTerms {
 function makeDefinition<Name extends string, Value extends TokenValue>(
   name: Name,
   defaults: readonly TokenTerm[],
+  single: boolean,
 ): TokenDefinition<Name, Value, TokenDefinitionRef, TokenDefinitionRef> {
   const normalizedDefaults = normalizeTerms(defaults);
   let definition: TokenDefinitionRef;
@@ -505,6 +510,7 @@ function makeDefinition<Name extends string, Value extends TokenValue>(
   });
   definition = callable;
   definitions.add(callable);
+  if (single) singleDefinitions.add(callable);
   // @ts-expect-error SAFETY: the callable parser enforces the public value-first overload at runtime.
   return callable as TokenDefinition<Name, Value, TokenDefinitionRef, TokenDefinitionRef>;
 }
@@ -527,8 +533,10 @@ function createDeclaration<Name extends string, Value extends TokenValue>(
   name: Name,
 ): TokenDeclaration<Name, Value> {
   const declaration = (...defaults: readonly TokenTerm[]) =>
-    makeDefinition<Name, Value>(name, defaults);
+    makeDefinition<Name, Value>(name, defaults, false);
   declaration.of = <NextValue extends TokenValue>() => createDeclaration<Name, NextValue>(name);
+  declaration.single = (...defaults: readonly TokenTerm[]) =>
+    makeDefinition<Name, Value>(name, defaults, true);
   // SAFETY: declaration forwards its complete relation tuple to makeDefinition unchanged.
   return declaration as TokenDeclaration<Name, Value>;
 }

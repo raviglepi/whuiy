@@ -87,7 +87,7 @@ function createDecoratorEntries(
   descriptors: readonly Descriptor[],
 ): readonly TokenEntry[] {
   return descriptors.map(descriptor => {
-    const definition = Token(definitionName(descriptor.name))();
+    const definition = Token(definitionName(descriptor.name)).single();
     const metadata: DecoratorMetadata = {definition, kind, property: descriptor.name};
     metadataMap.set(definition, metadata);
     return {definition, metadata};
