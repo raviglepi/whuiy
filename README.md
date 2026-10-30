@@ -120,13 +120,12 @@ There is a benchmark in `packages/dom/bench` (`bunx vitest bench dom/bench
 --project dom`). It measures one value write through the runtime, the graph
 change stream, and the DOM patch.
 
-Current numbers on this machine: about 37 writes per second, 26 ms mean, 1.7 ms
-best case. That is not acceptable. The cost is the Effect stream hop and drain
-per write, not the DOM patch. The next performance step is a synchronous change
-channel for adapters (a `Ref`-backed listener list instead of
-`SubscriptionRef` plus `Stream`), which should take a write under a millisecond.
-Mount and projection throughput are not measured correctly yet; the bench file
-needs a per-iteration runtime so the comparison against hand-written DOM holds.
+Current numbers on this machine: about 500 writes per second, 2 ms mean, 0.67 ms
+best case. Adapters now subscribe through a synchronous listener list
+(`runtime.subscribe`) instead of the Effect stream, which took a write from 26 ms
+to 2 ms. That is still above the target of 1 ms mean for a single value write.
+The remaining cost is `Effect.runSync` plus the drain per write; the next step is
+an imperative write path with the Effect API kept as a facade over it.
 
 ## Development
 

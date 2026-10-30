@@ -132,6 +132,13 @@ export interface WhuiyRuntime {
   readonly mount: (...roots: readonly TokenRoot[]) => Effect.Effect<Mount>;
   /** Broadcasts one event for every failed synchronous rule invocation. */
   readonly ruleFailures: Stream.Stream<RuleFailure>;
+  /**
+   * Calls `listener` synchronously after every completed mutation.
+   *
+   * Adapters that patch real DOM want this instead of `Mount.changes`: there is
+   * no fiber hop, so a write is visible before the writing effect returns.
+   */
+  readonly subscribe: (listener: (change: GraphChange) => void) => () => void;
 }
 
 interface RuntimeOperations extends WhuiyRuntime {
@@ -527,6 +534,7 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
   const state = yield* Ref.make(initial);
   const revision = yield* SubscriptionRef.make<GraphChange>({kind: "initial"});
   const failurePubSub = yield* PubSub.unbounded<RuleFailure>();
+  const listeners = new Set<(change: GraphChange) => void>();
   let runtime: RuntimeOperations;
 
   const handle = <Root extends string, Path extends readonly string[]>(
@@ -581,11 +589,16 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     return [{changed, kind: "complete", tokens}, current];
   });
   let drainRules: () => Effect.Effect<void>;
+  const publishChange = (tokens: readonly LiveToken[]): Effect.Effect<void> =>
+    Effect.gen(function* () {
+      const change: GraphChange = {kind: "update", tokens};
+      yield* SubscriptionRef.set(revision, change);
+      for (const listener of listeners) listener(change);
+    });
   const finishDrain = Effect.fn("WhuiyRuntime.finishDrain")(function* () {
     const completion = yield* completeDrain;
     if (completion.kind === "continue") return yield* drainRules();
-    if (completion.changed)
-      yield* SubscriptionRef.set(revision, {kind: "update", tokens: completion.tokens});
+    if (completion.changed) yield* publishChange(completion.tokens);
   });
   drainRules = Effect.fn("WhuiyRuntime.drainRules")(function* () {
     const entries = yield* takePendingEntries;
@@ -691,6 +704,10 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     mount,
     releaseRoots,
     ruleFailures: Stream.fromPubSub(failurePubSub),
+    subscribe: listener => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     set,
     setValue,
   };

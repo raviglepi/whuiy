@@ -230,14 +230,10 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         if (!complete) rebuild();
       };
       rebuild();
-      const changes = Effect.runFork(
-        Stream.runForEach(mounted.changes, change =>
-          Effect.sync(() => {
-            if (ignored(disposed, change.kind)) return;
-            update(change);
-          }),
-        ),
-      );
+      const unsubscribe = options.runtime.subscribe(change => {
+        if (disposed) return;
+        update(change);
+      });
       const failures = Effect.runFork(
         Stream.runForEach(options.runtime.ruleFailures, failure =>
           Effect.sync(() => options.reportError({failure, kind: "rule"})),
@@ -248,7 +244,7 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         removeAll(owned);
         owned = [];
         clearContext(ctx);
-        Effect.runSync(Fiber.interrupt(changes));
+        unsubscribe();
         Effect.runSync(Fiber.interrupt(failures));
         interrupt(fibers);
         Effect.runSync(mounted.release);
