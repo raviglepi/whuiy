@@ -17,8 +17,9 @@
     "fmt:check": "oxfmt --check '!tools/**/*.*/**/*'",
     "test": "cd packages && vitest run",
     "build": "pnpm --filter './packages/*' exec bun vite build",
+    "build:examples": "bun run --filter './examples/*' build",
     "docs": "pnpm --filter './packages/*' exec bun docgen",
-    "check": "bun fmt:check && bun generate:check && bun lint && bun run test && bun docs && bun run build",
+    "check": "bun fmt:check && bun generate:check && bun lint && bun run test && bun docs && bun run build && bun run build:examples",
     "release": "changeset publish"
   },
   "dependencies": {
