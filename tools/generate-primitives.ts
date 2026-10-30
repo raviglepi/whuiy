@@ -95,7 +95,13 @@ function literal(name: string): string {
 }
 
 function renderList(name: string, names: readonly string[]): readonly string[] {
-  return [`export const ${name}: readonly string[] = [`, ...names.map(literal), "];", ""];
+  return [
+    "/** @since 0.4.0 */",
+    `export const ${name}: readonly string[] = [`,
+    ...names.map(literal),
+    "];",
+    "",
+  ];
 }
 
 function render(
