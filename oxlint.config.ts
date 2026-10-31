@@ -7,6 +7,12 @@ const base = createOxlintConfig();
 // `bun run lint` is the single check for Effect code.
 export default defineConfig({
   ...base,
+  ignorePatterns: [
+    ...(base.ignorePatterns ?? []),
+    // Generated platform vocabulary: pure data whose member names come from
+    // lib.dom.d.ts, not from this repository's naming rules.
+    "packages/core/src/generated/platform.ts",
+  ],
   rules: {
     ...base.rules,
     ...({

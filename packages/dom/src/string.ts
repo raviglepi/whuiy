@@ -1,6 +1,6 @@
 /** @since 0.4.0 */
 
-import type {LiveToken, RuleFailure, TokenRoot} from "whuiy";
+import type {LiveToken, RuleFailure, TokenRoot, TokenValue} from "whuiy";
 
 import {Cause, Effect, Schema} from "effect";
 
@@ -25,9 +25,24 @@ const VOID_TAGS = new Set([
 
 const TextValue = Schema.Union([Schema.String, Schema.Finite]);
 
+/** Property names whose HTML attribute spelling differs from the DOM property. */
+const ATTRIBUTE_NAMES = new Map<string, string>([
+  ["className", "class"],
+  ["defaultChecked", "checked"],
+  ["defaultValue", "value"],
+  ["htmlFor", "for"],
+]);
+
 interface Parts {
+  readonly attributes: readonly string[];
   readonly body: string;
   readonly styles: readonly string[];
+}
+
+interface Draft {
+  readonly attributes: string[];
+  readonly body: string[];
+  readonly styles: string[];
 }
 
 function escapeText(value: string): string {
@@ -56,11 +71,17 @@ function textOf(token: LiveToken): string {
   return Schema.is(TextValue)(value) ? escapeText(String(value)) : "";
 }
 
+function openTag(tag: string, styles: readonly string[], attributes: readonly string[]): string {
+  const style = styles.length === 0 ? "" : ` style="${escapeText(styles.join(";"))}"`;
+  const rest = attributes.length === 0 ? "" : ` ${attributes.join(" ")}`;
+  return `<${tag}${style}${rest}>`;
+}
+
 function renderElement(token: LiveToken, tag: string, children: readonly LiveToken[]): string {
-  const {body, styles} = parts(children);
-  const attribute = styles.length === 0 ? "" : ` style="${escapeText(styles.join(";"))}"`;
-  const open = `<${tag}${attribute}>`;
-  return VOID_TAGS.has(tag) ? open : `${open}${body}</${tag}>`;
+  const {attributes, body, styles} = parts(children);
+  return VOID_TAGS.has(tag)
+    ? openTag(tag, styles, attributes)
+    : `${openTag(tag, styles, attributes)}${body}</${tag}>`;
 }
 
 function serialize(token: LiveToken): string {
@@ -79,18 +100,53 @@ function styleOf(token: LiveToken): string {
   return decorator?.kind === "style" ? declaration(token, decorator.property) : "";
 }
 
-function collect(styles: string[], body: string[], token: LiveToken): void {
-  if (isEvent(token)) return;
+function attributeName(property: string): string {
+  return ATTRIBUTE_NAMES.get(property) ?? property.toLowerCase();
+}
+
+function isOmitted(value: TokenValue): boolean {
+  return value === false || value === undefined || value === null;
+}
+
+function attributeText(property: string, value: TokenValue): string {
+  if (isOmitted(value)) return "";
+  if (value === true) return attributeName(property);
+  return `${attributeName(property)}="${escapeText(String(value))}"`;
+}
+
+function attributeOf(token: LiveToken): string {
+  const decorator = getDecoratorMetadata(token.definition);
+  if (decorator?.kind !== "property") return "";
+  return attributeText(decorator.property, token.value());
+}
+
+function collectDecorator(draft: Draft, token: LiveToken): void {
+  const attribute = attributeOf(token);
+  if (attribute.length > 0) {
+    draft.attributes.push(attribute);
+    return;
+  }
   const style = styleOf(token);
-  if (style.length > 0) styles.push(style);
-  else body.push(serialize(token));
+  if (style.length > 0) {
+    draft.styles.push(style);
+    return;
+  }
+  draft.body.push(serialize(token));
+}
+
+function collect(draft: Draft, token: LiveToken): void {
+  if (isEvent(token)) return;
+  collectDecorator(draft, token);
 }
 
 function parts(tokens: readonly LiveToken[]): Parts {
-  const styles: string[] = [];
-  const body: string[] = [];
-  for (const token of tokens) collect(styles, body, token);
-  return {body: body.join(""), styles: styles.filter(style => style.length > 0)};
+  const draft: Draft = {attributes: [], body: [], styles: []};
+  for (const token of tokens) collect(draft, token);
+  return {
+    attributes: draft.attributes.filter(attribute => attribute.length > 0),
+    body: draft.body.join(""),
+    styles: draft.styles.filter(style => style.length > 0),
+  };
 }
 
 /**

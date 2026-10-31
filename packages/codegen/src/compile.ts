@@ -1,5 +1,6 @@
 /** @since 0.4.0 */
 
+import type {DecoratorMetadata} from "whuiy/primitives";
 import type {TokenDefinitionRef, TokenInstanceRef, TokenTerm, TokenValue} from "whuiy";
 import type {
   DeriveRule,
@@ -206,18 +207,18 @@ function validateStaticEvent(decorator: ReturnType<typeof getDecoratorMetadata>,
     );
 }
 
-function isStyleDecorator(decorator: ReturnType<typeof getDecoratorMetadata>): boolean {
-  return decorator !== undefined && decorator.kind === "style";
+function isElementDecorator(decorator: ReturnType<typeof getDecoratorMetadata>): boolean {
+  return decorator !== undefined && decorator.kind !== "event";
 }
 
 function validateStylePlacement(
   decorator: ReturnType<typeof getDecoratorMetadata>,
   site: Site,
 ): void {
-  if (!isStyleDecorator(decorator)) return;
+  if (!isElementDecorator(decorator)) return;
   if (isElement(site.parent)) return;
   throw new Error(
-    `Style ${site.node.definition.name} is attached to a non-element token; attach styles to an element`,
+    `Style and property tokens must sit on an element; ${site.node.definition.name} does not`,
   );
 }
 
@@ -378,15 +379,32 @@ class Emitter {
   ): void {
     const name = this.#define(tag, site.node);
     this.line(`const ${name} = document.createElement(${quote(tag)});`);
-    for (const child of site.children) this.#applyStyle(child, name);
+    for (const child of site.children) this.#applyDecorator(child, name);
     this.#emitChildren(site, name, substitution);
     this.#append(name, parent);
   }
 
-  #applyStyle(site: Site, element: string): void {
+  #applyDecorator(site: Site, element: string): void {
     const decorator = getDecoratorMetadata(site.node.definition);
-    if (decorator?.kind !== "style") return;
-    this.line(`${element}.style.${decorator.property} = ${valueLiteral(site.node.value())};`);
+    if (decorator === undefined) return;
+    this.#applyDecoratorKind(site, element, decorator);
+  }
+
+  #applyDecoratorKind(site: Site, element: string, decorator: DecoratorMetadata): void {
+    if (decorator.kind === "event") return;
+    if (decorator.kind === "style") {
+      this.#applyStyle(site, element, decorator.property);
+      return;
+    }
+    this.#applyProperty(site, element, decorator.property);
+  }
+
+  #applyStyle(site: Site, element: string, property: string): void {
+    this.line(`${element}.style.${property} = ${valueLiteral(site.node.value())};`);
+  }
+
+  #applyProperty(site: Site, element: string, property: string): void {
+    this.line(`${element}.${property} = ${valueLiteral(site.node.value())};`);
   }
 
   #emitContent(site: Site, parent: string | undefined, substitution: Substitution): void {

@@ -62,6 +62,8 @@ export {
   /** @since 0.4.0 */
   Event,
   /** @since 0.4.0 */
+  Property,
+  /** @since 0.4.0 */
   Style,
 } from "./primitives.ts";
 export type {
@@ -75,6 +77,14 @@ export type {
   EventProperty,
   /** @since 0.4.0 */
   EventToken,
+  /** @since 0.4.0 */
+  PropertyFamily,
+  /** @since 0.4.0 */
+  PropertyName,
+  /** @since 0.4.0 */
+  PropertyToken,
+  /** @since 0.4.0 */
+  PropertyValue,
   /** @since 0.4.0 */
   StyleFamily,
   /** @since 0.4.0 */

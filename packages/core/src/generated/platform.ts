@@ -767,3 +767,223 @@ export const elementTags: readonly string[] = [
   "video",
   "wbr",
 ];
+
+/** @since 0.4.0 */
+export interface PropertyTypes {
+  readonly accept: "string";
+  readonly accessKey: "string";
+  readonly align: "string";
+  readonly alt: "string";
+  readonly autocapitalize: "string";
+  readonly autocorrect: "boolean";
+  readonly autofocus: "boolean";
+  readonly autoplay: "boolean";
+  readonly border: "string";
+  readonly capture: "string";
+  readonly charset: "string";
+  readonly checked: "boolean";
+  readonly className: "string";
+  readonly closedBy: "string";
+  readonly colorSpace: "string";
+  readonly cols: "number";
+  readonly command: "string";
+  readonly contentEditable: "string";
+  readonly controls: "boolean";
+  readonly coords: "string";
+  readonly currentTime: "number";
+  readonly defaultChecked: "boolean";
+  readonly defaultMuted: "boolean";
+  readonly defaultPlaybackRate: "number";
+  readonly defaultSelected: "boolean";
+  readonly defaultValue: "string";
+  readonly dir: "string";
+  readonly dirName: "string";
+  readonly disabled: "boolean";
+  readonly disablePictureInPicture: "boolean";
+  readonly disableRemotePlayback: "boolean";
+  readonly download: "string";
+  readonly draggable: "boolean";
+  readonly enterKeyHint: "string";
+  readonly formAction: "string";
+  readonly formEnctype: "string";
+  readonly formMethod: "string";
+  readonly formNoValidate: "boolean";
+  readonly formTarget: "string";
+  readonly height: "number";
+  readonly href: "string";
+  readonly hreflang: "string";
+  readonly hspace: "number";
+  readonly htmlFor: "string";
+  readonly id: "string";
+  readonly indeterminate: "boolean";
+  readonly inert: "boolean";
+  readonly inputMode: "string";
+  readonly isMap: "boolean";
+  readonly label: "string";
+  readonly lang: "string";
+  readonly longDesc: "string";
+  readonly loop: "boolean";
+  readonly lowsrc: "string";
+  readonly max: "string";
+  readonly maxLength: "number";
+  readonly min: "string";
+  readonly minLength: "number";
+  readonly multiple: "boolean";
+  readonly muted: "boolean";
+  readonly name: "string";
+  readonly nonce: "string";
+  readonly open: "boolean";
+  readonly pattern: "string";
+  readonly ping: "string";
+  readonly placeholder: "string";
+  readonly playbackRate: "number";
+  readonly playsInline: "boolean";
+  readonly popoverTargetAction: "string";
+  readonly poster: "string";
+  readonly preservesPitch: "boolean";
+  readonly readOnly: "boolean";
+  readonly referrerPolicy: "string";
+  readonly rel: "string";
+  readonly required: "boolean";
+  readonly returnValue: "string";
+  readonly rev: "string";
+  readonly rows: "number";
+  readonly scrollLeft: "number";
+  readonly scrollTop: "number";
+  readonly selected: "boolean";
+  readonly selectionEnd: "number";
+  readonly selectionStart: "number";
+  readonly shape: "string";
+  readonly size: "number";
+  readonly sizes: "string";
+  readonly slot: "string";
+  readonly spellcheck: "boolean";
+  readonly src: "string";
+  readonly srcset: "string";
+  readonly step: "string";
+  readonly tabIndex: "number";
+  readonly target: "string";
+  readonly text: "string";
+  readonly title: "string";
+  readonly translate: "boolean";
+  readonly type: "string";
+  readonly useMap: "string";
+  readonly value: "string";
+  readonly valueAsNumber: "number";
+  readonly volume: "number";
+  readonly vspace: "number";
+  readonly webkitdirectory: "boolean";
+  readonly width: "number";
+  readonly wrap: "string";
+  readonly writingSuggestions: "string";
+}
+
+/** @since 0.4.0 */
+export const propertyNames: readonly (keyof PropertyTypes)[] = [
+  "accept",
+  "accessKey",
+  "align",
+  "alt",
+  "autocapitalize",
+  "autocorrect",
+  "autofocus",
+  "autoplay",
+  "border",
+  "capture",
+  "charset",
+  "checked",
+  "className",
+  "closedBy",
+  "colorSpace",
+  "cols",
+  "command",
+  "contentEditable",
+  "controls",
+  "coords",
+  "currentTime",
+  "defaultChecked",
+  "defaultMuted",
+  "defaultPlaybackRate",
+  "defaultSelected",
+  "defaultValue",
+  "dir",
+  "dirName",
+  "disabled",
+  "disablePictureInPicture",
+  "disableRemotePlayback",
+  "download",
+  "draggable",
+  "enterKeyHint",
+  "formAction",
+  "formEnctype",
+  "formMethod",
+  "formNoValidate",
+  "formTarget",
+  "height",
+  "href",
+  "hreflang",
+  "hspace",
+  "htmlFor",
+  "id",
+  "indeterminate",
+  "inert",
+  "inputMode",
+  "isMap",
+  "label",
+  "lang",
+  "longDesc",
+  "loop",
+  "lowsrc",
+  "max",
+  "maxLength",
+  "min",
+  "minLength",
+  "multiple",
+  "muted",
+  "name",
+  "nonce",
+  "open",
+  "pattern",
+  "ping",
+  "placeholder",
+  "playbackRate",
+  "playsInline",
+  "popoverTargetAction",
+  "poster",
+  "preservesPitch",
+  "readOnly",
+  "referrerPolicy",
+  "rel",
+  "required",
+  "returnValue",
+  "rev",
+  "rows",
+  "scrollLeft",
+  "scrollTop",
+  "selected",
+  "selectionEnd",
+  "selectionStart",
+  "shape",
+  "size",
+  "sizes",
+  "slot",
+  "spellcheck",
+  "src",
+  "srcset",
+  "step",
+  "tabIndex",
+  "target",
+  "text",
+  "title",
+  "translate",
+  "type",
+  "useMap",
+  "value",
+  "valueAsNumber",
+  "volume",
+  "vspace",
+  "webkitdirectory",
+  "width",
+  "wrap",
+  "writingSuggestions",
+];

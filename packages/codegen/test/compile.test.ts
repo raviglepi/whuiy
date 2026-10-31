@@ -3,7 +3,7 @@ import {describe, expect, it} from "vitest";
 
 import {Effect} from "effect";
 
-import {Element, Event, Style, Token} from "whuiy";
+import {Element, Event, Property, Style, Token} from "whuiy";
 import {compile, define} from "../src/index.ts";
 
 interface TestState {
@@ -87,6 +87,27 @@ describe("codegen", () => {
     expect(source).toContain("theme = updater(theme);");
     expect(source).toContain("updateDivVisible();");
     expect(source).toContain("updateDivBackgroundColor();");
+  });
+
+  it("lowers property tokens to direct property writes", () => {
+    const program = define(
+      {
+        description: Element.Input(
+          Property.Type("checkbox"),
+          Property.Checked(true),
+          Property.Placeholder("done?"),
+        ),
+        runtime: "./handlers.ts",
+        state: [] as const,
+      },
+      () => [],
+    );
+
+    const source = compile(program);
+
+    expect(source).toContain('input.type = "checkbox";');
+    expect(source).toContain("input.checked = true;");
+    expect(source).toContain('input.placeholder = "done?";');
   });
 
   it("rejects a description that carries a static event token", () => {

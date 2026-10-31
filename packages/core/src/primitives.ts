@@ -1,9 +1,10 @@
 import type {PascalCase} from "type-fest";
+import type {PropertyTypes} from "./generated/platform.ts";
 import type {TokenDefinition, TokenDefinitionRef} from "./token.ts";
 
 import {Effect} from "effect";
 
-import {elementTags, eventTypes, styleProperties} from "./generated/platform.ts";
+import {elementTags, eventTypes, propertyNames, styleProperties} from "./generated/platform.ts";
 import {contentDefinitions, Token} from "./token.ts";
 
 /** @since 0.4.0 */
@@ -20,6 +21,33 @@ export type StyleProperty = Exclude<
 export type EventProperty = `on${Capitalize<Extract<keyof HTMLElementEventMap, string>>}`;
 /** @internal @since 0.4.0 */
 export type ElementProperty = Extract<keyof HTMLElementTagNameMap, string>;
+
+/**
+ * Writable platform properties that carry a primitive value.
+ *
+ * @since 0.4.0
+ */
+export type PropertyName = keyof PropertyTypes;
+
+type PropertyValueType<Type> = Type extends "boolean"
+  ? boolean
+  : Type extends "number"
+    ? number
+    : string;
+
+/** @since 0.4.0 */
+export type PropertyValue<Property extends PropertyName> = PropertyValueType<
+  PropertyTypes[Property]
+>;
+/** @since 0.4.0 */
+export type PropertyToken<Property extends PropertyName> = TokenDefinition<
+  PascalCase<Property>,
+  PropertyValue<Property>
+>;
+/** @since 0.4.0 */
+export type PropertyFamily = {
+  readonly [Property in PropertyName as PascalCase<Property>]: PropertyToken<Property>;
+};
 
 type EventName<Property extends EventProperty> = Property extends `on${infer Name}`
   ? Uncapitalize<Name> & keyof HTMLElementEventMap
@@ -57,6 +85,7 @@ export type ElementFamily = {
 /** @internal */
 export type DecoratorMetadata =
   | {readonly definition: TokenDefinitionRef; readonly kind: "event"; readonly property: string}
+  | {readonly definition: TokenDefinitionRef; readonly kind: "property"; readonly property: string}
   | {readonly definition: TokenDefinitionRef; readonly kind: "style"; readonly property: string};
 /** @internal */
 export interface ElementMetadata {
@@ -72,6 +101,7 @@ const eventDescriptors = eventTypes.map(name => ({
   name: "on" + name.charAt(0).toUpperCase() + name.slice(1),
 }));
 const elementDescriptors = elementTags.map(name => ({name}));
+const propertyDescriptors = propertyNames.map(name => ({name}));
 
 const metadataMap = new WeakMap<TokenDefinitionRef, PrimitiveMetadata>();
 
@@ -116,6 +146,10 @@ export const Style = createFamily<StyleFamily>(createDecoratorEntries("style", s
 export const Event = createFamily<EventFamily>(createDecoratorEntries("event", eventDescriptors));
 /** @since 0.4.0 */
 export const Element = createFamily<ElementFamily>(createElementEntries(elementDescriptors));
+/** @since 0.4.0 */
+export const Property = createFamily<PropertyFamily>(
+  createDecoratorEntries("property", propertyDescriptors),
+);
 
 /** @internal @since 0.4.0 */
 export function isContentDefinition(value: TokenDefinitionRef): boolean {

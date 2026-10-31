@@ -1,5 +1,6 @@
 /** @since 0.4.0 */
 
+import type {DecoratorMetadata} from "whuiy/primitives";
 import type {GraphChange, LiveToken, TokenRoot, TokenValue, WhuiyRuntime} from "whuiy";
 import type {ErrorReporter} from "./errors.ts";
 
@@ -10,20 +11,25 @@ import {ProjectionError} from "./errors.ts";
 
 type Handler = (event: Event) => Effect.Effect<void>;
 
-type Entry =
-  | {readonly kind: "element"; readonly element: HTMLElement}
-  | {readonly kind: "text"; readonly node: Text};
-
-interface StyleOwner {
+type ElementEntry = {
+  readonly childIds: ReadonlySet<number>;
   readonly element: HTMLElement;
+  readonly kind: "element";
+};
+type Entry = ElementEntry | {readonly kind: "text"; readonly node: Text};
+
+interface DecoratorOwner {
+  readonly element: HTMLElement;
+  readonly kind: "property" | "style";
   readonly property: string;
 }
 
 interface Context {
+  readonly containers: Set<number>;
   readonly document: Document;
   readonly entries: Map<number, Entry>;
   readonly known: Set<number>;
-  readonly owners: Map<number, StyleOwner>;
+  readonly owners: Map<number, DecoratorOwner>;
   readonly reportError: ErrorReporter;
 }
 
@@ -65,6 +71,10 @@ function applyStyle(token: LiveToken, element: HTMLElement, property: string): v
   else element.style.setProperty(name, value);
 }
 
+function applyProperty(token: LiveToken, element: HTMLElement, property: string): void {
+  Reflect.set(element, property, token.value());
+}
+
 function eventType(property: string): string {
   return property.slice(2).toLowerCase();
 }
@@ -95,18 +105,27 @@ function decorate(token: LiveToken, element: HTMLElement, ctx: Context): void {
   const decorator = getDecoratorMetadata(token.definition);
   if (decorator === undefined) return;
   ctx.known.add(token.id);
-  if (decorator.kind === "event") attachListener(token, element, decorator.property, ctx);
-  else decorateStyle(token, element, decorator.property, ctx);
+  decorateKind({ctx, decorator, element, token});
 }
 
-function decorateStyle(
-  token: LiveToken,
-  element: HTMLElement,
-  property: string,
-  ctx: Context,
-): void {
-  applyStyle(token, element, property);
-  ctx.owners.set(token.id, {element, property});
+function decorateKind(options: {
+  readonly ctx: Context;
+  readonly decorator: DecoratorMetadata;
+  readonly element: HTMLElement;
+  readonly token: LiveToken;
+}): void {
+  const {ctx, decorator, element, token} = options;
+  if (decorator.kind === "event") {
+    attachListener(token, element, decorator.property, ctx);
+    return;
+  }
+  if (decorator.kind === "property") {
+    applyProperty(token, element, decorator.property);
+    ctx.owners.set(token.id, {element, kind: "property", property: decorator.property});
+    return;
+  }
+  applyStyle(token, element, decorator.property);
+  ctx.owners.set(token.id, {element, kind: "style", property: decorator.property});
 }
 
 function decorateChildren(token: LiveToken, element: HTMLElement, ctx: Context): void {
@@ -120,10 +139,19 @@ function appendChildren(token: LiveToken, element: HTMLElement, ctx: Context): v
 
 function projectElement(token: LiveToken, tag: string, ctx: Context): HTMLElement {
   const element = ctx.document.createElement(tag);
-  ctx.entries.set(token.id, {element, kind: "element"});
   decorateChildren(token, element, ctx);
   appendChildren(token, element, ctx);
+  ctx.entries.set(token.id, {childIds: contentIds(token), element, kind: "element"});
   return element;
+}
+
+function contentIds(token: LiveToken): ReadonlySet<number> {
+  return new Set(
+    token
+      .tokens()
+      .filter(child => !isDecorator(child))
+      .map(child => child.id),
+  );
 }
 
 function projectText(token: LiveToken, ctx: Context): readonly Node[] {
@@ -133,45 +161,69 @@ function projectText(token: LiveToken, ctx: Context): readonly Node[] {
   return [node];
 }
 
+function projectContainer(token: LiveToken, ctx: Context): readonly Node[] {
+  if (token.tokens().length > 0) ctx.containers.add(token.id);
+  return token.tokens().flatMap(child => project(child, ctx));
+}
+
 function project(token: LiveToken, ctx: Context): readonly Node[] {
   ctx.known.add(token.id);
   const element = getElementMetadata(token.definition);
   if (element !== undefined) return [projectElement(token, element.tag, ctx)];
   if (isContentDefinition(token.definition)) return projectText(token, ctx);
-  return token.tokens().flatMap(child => project(child, ctx));
+  return projectContainer(token, ctx);
 }
 
 function applyStylesOf(token: LiveToken, element: HTMLElement, ctx: Context): void {
   for (const child of token.tokens()) decorate(child, element, ctx);
 }
 
-function patchEntry(token: LiveToken, entry: Entry, ctx: Context): void {
-  if (entry.kind === "text") entry.node.data = textOf(token);
-  else applyStylesOf(token, entry.element, ctx);
+function sameChildIds(token: LiveToken, expected: ReadonlySet<number>): boolean {
+  const ids = [...contentIds(token)];
+  return ids.length === expected.size && ids.every(id => expected.has(id));
 }
 
-function patchStyleOwner(token: LiveToken, owner: StyleOwner): void {
+function patchElement(token: LiveToken, entry: ElementEntry, ctx: Context): boolean {
+  if (!sameChildIds(token, entry.childIds)) return false;
+  applyStylesOf(token, entry.element, ctx);
+  return true;
+}
+
+function patchEntry(token: LiveToken, entry: Entry, ctx: Context): boolean {
+  if (entry.kind === "text") {
+    entry.node.data = textOf(token);
+    return true;
+  }
+  return patchElement(token, entry, ctx);
+}
+
+function patchOwner(token: LiveToken, owner: DecoratorOwner): void {
+  if (owner.kind === "property") {
+    applyProperty(token, owner.element, owner.property);
+    return;
+  }
   applyStyle(token, owner.element, owner.property);
 }
 
-function patchKnown(token: LiveToken, ctx: Context): void {
+function patchKnown(token: LiveToken, ctx: Context): boolean {
   const owner = ctx.owners.get(token.id);
   if (owner !== undefined) {
-    patchStyleOwner(token, owner);
-    return;
+    patchOwner(token, owner);
+    return true;
   }
   const entry = ctx.entries.get(token.id);
-  if (entry === undefined) return;
-  patchEntry(token, entry, ctx);
+  if (entry === undefined) return true;
+  return patchEntry(token, entry, ctx);
 }
 
 function patch(token: LiveToken, ctx: Context): boolean {
   if (!ctx.known.has(token.id)) return false;
-  patchKnown(token, ctx);
-  return true;
+  if (ctx.containers.has(token.id)) return false;
+  return patchKnown(token, ctx);
 }
 
 function clearContext(ctx: Context): void {
+  ctx.containers.clear();
   ctx.entries.clear();
   ctx.known.clear();
   ctx.owners.clear();
@@ -215,6 +267,7 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
       let disposed = false;
       let owned: readonly Node[] = [];
       const ctx: Context = {
+        containers: new Set(),
         document: parent.ownerDocument,
         entries: new Map(),
         known: new Set(),

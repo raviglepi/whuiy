@@ -1,5 +1,6 @@
 import type * as React from "react";
 import type {ReactNode} from "react";
+import type {DecoratorMetadata, ElementMetadata} from "whuiy/primitives";
 import type {LiveToken, TokenDefinitionRef, TokenValue} from "whuiy";
 
 import {Context, Effect, Predicate, Schema} from "effect";
@@ -10,8 +11,10 @@ import {ProjectionError} from "./errors.tsx";
 
 type EventHandler = (event: React.SyntheticEvent<HTMLElement>) => Effect.Effect<void>;
 type Handler = {readonly tokenId: number; readonly value: EventHandler};
+type PropertyValues = Readonly<Record<string, string | number | boolean>>;
 interface Decorators {
   readonly events: ReadonlyMap<string, readonly Handler[]>;
+  readonly properties: PropertyValues;
   readonly style: React.CSSProperties;
 }
 type HostProps = React.HTMLAttributes<HTMLElement> & {
@@ -32,7 +35,7 @@ export class ListenerDispatcher extends Context.Service<
   }
 >()("@whuiy/react/projection/ListenerDispatcher") {}
 
-const emptyDecorators: Decorators = {events: new Map(), style: {}};
+const emptyDecorators: Decorators = {events: new Map(), properties: {}, style: {}};
 const StyleValueSchema = Schema.Union([Schema.String, Schema.Finite]);
 function reads(token: LiveToken, definition: TokenDefinitionRef): TokenValue {
   if (token.definition !== definition) {
@@ -83,31 +86,65 @@ function styleValue(options: {
   });
 }
 
+function propertyValue(options: {
+  readonly token: LiveToken;
+  readonly value: TokenValue;
+}): string | number | boolean {
+  if (Schema.is(StyleValueSchema)(options.value) || Predicate.isBoolean(options.value))
+    return options.value;
+  throw new ProjectionError({
+    cause: new Error(`${options.token.definition.name} requires a primitive property value`),
+    tokenId: options.token.id,
+  });
+}
+
 function collectDecorator(options: {
   readonly events: Map<string, readonly Handler[]>;
+  readonly properties: Record<string, string | number | boolean>;
   readonly style: React.CSSProperties;
   readonly token: LiveToken;
 }): void {
   const metadata = getDecoratorMetadata(options.token.definition);
   if (metadata === undefined) return;
   const value = reads(options.token, metadata.definition);
+  collectDecoratorKind({...options, metadata, value});
+}
+
+function collectDecoratorKind(options: {
+  readonly events: Map<string, readonly Handler[]>;
+  readonly metadata: DecoratorMetadata;
+  readonly properties: Record<string, string | number | boolean>;
+  readonly style: React.CSSProperties;
+  readonly token: LiveToken;
+  readonly value: TokenValue;
+}): void {
+  const metadata = options.metadata;
   if (metadata.kind === "style") {
-    Object.assign(options.style, {[metadata.property]: styleValue({token: options.token, value})});
+    Object.assign(options.style, {
+      [metadata.property]: styleValue({token: options.token, value: options.value}),
+    });
+    return;
+  }
+  if (metadata.kind === "property") {
+    Object.assign(options.properties, {
+      [metadata.property]: propertyValue({token: options.token, value: options.value}),
+    });
     return;
   }
   appendListener({
     events: options.events,
     property: metadata.property,
     token: options.token,
-    value,
+    value: options.value,
   });
 }
 
 function collectDecorators(tokens: readonly LiveToken[], inherited: Decorators): Decorators {
   const events = new Map(inherited.events);
+  const properties = {...inherited.properties};
   const style: React.CSSProperties = {...inherited.style};
-  for (const token of tokens) collectDecorator({events, style, token});
-  return {events, style};
+  for (const token of tokens) collectDecorator({events, properties, style, token});
+  return {events, properties, style};
 }
 
 function isDecorator(token: LiveToken): boolean {
@@ -145,6 +182,7 @@ function applyDecorators(options: {
     const listener = makeListener({dispatcher: options.dispatcher, listeners});
     if (listener !== undefined) Object.assign(changes, {[property]: listener});
   }
+  Object.assign(changes, options.decorators.properties);
   return cloneElement(options.element, changes);
 }
 
@@ -158,15 +196,26 @@ function readStyle(element: React.ReactElement): React.CSSProperties | undefined
   return Schema.is(StylePropsSchema)(element.props) ? element.props.style : undefined;
 }
 
+function hostFor(options: {
+  readonly children: readonly ReactNode[];
+  readonly element: ElementMetadata;
+  readonly tokenId: number;
+}): React.ReactElement {
+  const props: HostProps =
+    options.element.tag === "button"
+      ? {key: options.tokenId, type: "button"}
+      : {key: options.tokenId};
+  if (options.children.length === 0) return createElement<HostProps>(options.element.tag, props);
+  return createElement<HostProps>(options.element.tag, props, options.children);
+}
+
 function elementHost(options: {
   readonly children: readonly ReactNode[];
   readonly token: LiveToken;
 }): React.ReactElement | undefined {
   const element = getElementMetadata(options.token.definition);
   if (element === undefined) return undefined;
-  const props: HostProps =
-    element.tag === "button" ? {key: options.token.id, type: "button"} : {key: options.token.id};
-  return createElement<HostProps>(element.tag, props, options.children);
+  return hostFor({children: options.children, element, tokenId: options.token.id});
 }
 
 function nextPath(path: ReadonlySet<number>, token: LiveToken): ReadonlySet<number> {

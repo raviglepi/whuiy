@@ -66,6 +66,25 @@ function find(parent: HTMLElement, selector: string): HTMLElement {
 }
 
 describe("DOM patching", () => {
+  it("rebuilds when a rule replaces element children directly", () => {
+    const Text = Token("Text").content<string>();
+    const List = Token("List")();
+    let live: LiveToken | undefined;
+    const ui = new Whuiy().rule(List(), function* (list) {
+      live = list.get(Element.Div);
+    });
+    const runtime = Effect.runSync(ui.make());
+    const parent = document.createElement("main");
+    const renderer = createDomRenderer({reportError: () => undefined, runtime});
+
+    renderer.render(parent, List(Element.Div(Element.Span(Text("a")), Element.Span(Text("b")))));
+    expect(parent.querySelectorAll("span")).toHaveLength(2);
+
+    Effect.runSync(live!.pipe(Token.set(Element.Span(Text("a")))));
+
+    expect([...parent.querySelectorAll("span")].map(span => span.textContent)).toEqual(["a"]);
+  });
+
   it("updates text without replacing the element", () => {
     const Text = Token("Text").content<string>();
     const Panel = Token("Panel")();

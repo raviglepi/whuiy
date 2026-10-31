@@ -5,7 +5,7 @@ import {Effect} from "effect";
 
 import {isValidElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
-import {Element, Event, Style, Token, Whuiy} from "whuiy";
+import {Element, Event, Property, Style, Token, Whuiy} from "whuiy";
 import {createReactRenderer} from "../src/index.ts";
 import {ListenerDispatcher, project} from "../src/projection.tsx";
 
@@ -45,6 +45,17 @@ describe("React projection", () => {
     expect(html).toContain("color:navy");
     expect(html).toContain("padding:1rem");
     expect(html.match(/color:navy/g)).toHaveLength(1);
+  });
+
+  it("projects property tokens as React props", () => {
+    const runtime = Effect.runSync(new Whuiy().make());
+    const renderer = createReactRenderer({reportError: () => undefined, runtime});
+    const html = renderToStaticMarkup(
+      renderer.render(Element.Input(Property.Placeholder("name"), Property.Disabled(true))),
+    );
+
+    expect(html).toContain('placeholder="name"');
+    expect(html).toContain("disabled");
   });
 
   it("projects generated event decorators and skips absent listeners", () => {
