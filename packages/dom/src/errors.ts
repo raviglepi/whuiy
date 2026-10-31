@@ -1,10 +1,11 @@
-import type {RuleFailure} from "whuiy";
+import type {RuleFailure, RuleWarning} from "whuiy";
 
 /** @since 0.4.0 */
 export type WhuiyDomReport =
   | {readonly cause: unknown; readonly kind: "listener"; readonly tokenId: number}
   | {readonly cause: unknown; readonly kind: "projection"; readonly tokenId?: number}
-  | {readonly failure: RuleFailure; readonly kind: "rule"};
+  | {readonly failure: RuleFailure; readonly kind: "rule"}
+  | {readonly kind: "warning"; readonly warning: RuleWarning};
 
 /** @since 0.4.0 */
 export type ErrorReporter = (report: WhuiyDomReport) => void;

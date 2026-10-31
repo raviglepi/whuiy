@@ -1,4 +1,4 @@
-import type {ErrorReporter} from "@whuiy/dom";
+import type {ErrorReporter, WhuiyDomReport} from "@whuiy/dom";
 
 import {Effect} from "effect";
 
@@ -12,14 +12,18 @@ document.body.append(status);
 
 if (container === null) throw new Error("Missing #app container");
 
+function messageOf(report: WhuiyDomReport): string {
+  if (report.kind === "rule") return `rule ${report.failure.rule} failed`;
+  if (report.kind === "warning") return `warning: ${report.warning.message}`;
+  return errorMessage(report);
+}
+
+function errorMessage(report: Extract<WhuiyDomReport, {cause: unknown}>): string {
+  return report.cause instanceof Error ? report.cause.message : "projection failed";
+}
+
 const report: ErrorReporter = self => {
-  const message =
-    self.kind === "rule"
-      ? `rule ${self.failure.rule} failed`
-      : self.cause instanceof Error
-        ? self.cause.message
-        : "projection failed";
-  status.textContent = message;
+  status.textContent = messageOf(self);
 };
 
 const runtime = Effect.runSync(ui.make());

@@ -108,6 +108,13 @@ Rules re-evaluate only the nodes touched by a change: a value write inside one
 list row runs the rules for that row, not for the other rows. A rule runs again
 for a node when the node itself changed, or when a token in its subtree changed.
 
+A rule's condition is also its subscription. `value()` is a snapshot read, so a
+rule that reads a token its condition does not name will never run again for
+that token. The runtime reports the mismatch through `subscribeWarnings`, and
+adapters forward it as a `warning` report, so the mistake is a message instead
+of a value that silently never changes. Event handlers are exempt: they read at
+event time and are not expected to re-run the rule.
+
 ## Static output
 
 Rule bodies are ordinary Effect generators, so they cannot in general be erased.

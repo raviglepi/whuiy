@@ -54,6 +54,16 @@ function makeListenerDispatcherLayer(reportError: ErrorReporter) {
 }
 
 /** @internal */
+/** @internal */
+function subscribeWarnings(props: ProjectionProps): Effect.Effect<void, never, Scope.Scope> {
+  return Effect.acquireRelease(
+    Effect.sync(() =>
+      props.runtime.subscribeWarnings(warning => props.reportError({kind: "warning", warning})),
+    ),
+    unsubscribe => Effect.sync(() => unsubscribe()),
+  ).pipe(Effect.asVoid);
+}
+
 function makeProjectionStream({reportError, roots, runtime}: ProjectionProps) {
   return Stream.scoped(
     Stream.unwrap(
@@ -71,6 +81,7 @@ function makeProjectionStream({reportError, roots, runtime}: ProjectionProps) {
           ),
           {startImmediately: true},
         );
+        yield* subscribeWarnings({reportError, roots, runtime});
         const mounted = yield* Effect.acquireRelease(
           runtime.mount(...roots),
           mounted => mounted.release,
@@ -108,6 +119,7 @@ function projectServer({reportError, roots, runtime}: ProjectionProps): readonly
           ),
           {startImmediately: true},
         );
+        yield* subscribeWarnings({reportError, roots, runtime});
         const mounted = yield* Effect.acquireRelease(
           runtime.mount(...roots),
           mounted => mounted.release,

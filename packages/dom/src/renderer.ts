@@ -277,6 +277,9 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
       const unsubscribeFailures = options.runtime.subscribeFailures(failure =>
         options.reportError({failure, kind: "rule"}),
       );
+      const unsubscribeWarnings = options.runtime.subscribeWarnings(warning =>
+        options.reportError({kind: "warning", warning}),
+      );
       const mounted = Effect.runSync(options.runtime.mount(...roots));
       const rebuild = (): void => {
         clearContext(ctx);
@@ -301,6 +304,7 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
         clearContext(ctx);
         unsubscribe();
         unsubscribeFailures();
+        unsubscribeWarnings();
         Effect.runSync(mounted.release);
       };
       return {

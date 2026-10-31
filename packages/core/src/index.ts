@@ -19,6 +19,8 @@ export type {
 export type {
   /** @since 0.4.0 */
   GraphChange,
+  /** @since 0.4.0 */
+  RuleWarning,
   /** @since 0.1.0 */
   WhuiyRuntime,
   /** @since 0.1.0 */

@@ -91,4 +91,19 @@ describe("todo example", () => {
     expect(parent.querySelectorAll("li")).toHaveLength(0);
     expect(countText(parent)).toBe("nothing yet");
   });
+
+  it("does not warn about reads outside rule conditions", () => {
+    const parent = document.createElement("main");
+    const runtime = Effect.runSync(ui.make());
+    const warnings: string[] = [];
+    const renderer = createDomRenderer({
+      reportError: report => {
+        if (report.kind === "warning") warnings.push(report.warning.rule);
+      },
+      runtime,
+    });
+    renderer.render(parent, description([]));
+
+    expect(warnings).toEqual([]);
+  });
 });

@@ -39,7 +39,6 @@ const row = (text: string) => Row(Element.Li(Text(text), Style.Padding("0.125rem
 /** @since 0.4.0 */
 export const description = Page(
   Counter(
-    Count(0),
     Theme("light"),
     Query(""),
     Element.Section(
@@ -87,6 +86,7 @@ export const description = Page(
         Style.Gap("0.125rem"),
       ),
     ),
+    Count(0),
   ),
 );
 
@@ -128,8 +128,9 @@ export const ui = new Whuiy()
       ),
     );
   })
-  .rule(Counter(CountPanel()), function* (counter) {
+  .rule(Counter(Count()), function* (counter) {
     yield* counter
+      .get(Element.Section)
       .get(CountPanel)
       .get(Element.P)
       .get(Label)

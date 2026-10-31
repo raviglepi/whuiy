@@ -89,7 +89,27 @@ export type GraphChange =
 
 interface RuleEntry {
   readonly node: LiveNode;
+  readonly plan: RulePlan;
   readonly rule: RuntimeRule;
+}
+
+/**
+ * One rule read a token outside its condition.
+ *
+ * **When to use**
+ *
+ * Consume these through {@link WhuiyRuntime.subscribeWarnings}: the read is a
+ * snapshot, and the rule will not run again when that token changes.
+ *
+ * @since 0.4.0
+ * @category Models
+ */
+export interface RuleWarning {
+  /** The definition the rule read without watching. */
+  readonly definition: TokenDefinitionRef;
+  readonly message: string;
+  readonly rule: string;
+  readonly token: LiveToken;
 }
 
 /**
@@ -142,6 +162,14 @@ export interface WhuiyRuntime {
    * `ruleFailures`: it cannot miss a failure that happened during the mount.
    */
   readonly subscribeFailures: (listener: (failure: RuleFailure) => void) => () => void;
+  /**
+   * Calls `listener` once per rule that reads a token outside its condition.
+   *
+   * A rule only re-runs when a definition in its condition changes, so such a
+   * read is a snapshot that silently never updates. The warning names both
+   * sides.
+   */
+  readonly subscribeWarnings: (listener: (warning: RuleWarning) => void) => () => void;
 }
 
 /** @internal */
@@ -157,6 +185,7 @@ interface RuntimeOperations {
     root: Root,
     path: Path,
   ) => LiveToken<TokenDefinitionRef, Root, Path>;
+  readonly noteRead: (definition: TokenDefinitionRef) => void;
   readonly set: (node: LiveNode, roots: readonly TokenRoot[]) => void;
   readonly setValue: (node: LiveNode, value: TokenValue) => void;
 }
@@ -321,6 +350,7 @@ class LiveTokenImpl<
   }
 
   value(): ValueOf<Definition> | undefined {
+    this.#runtime.noteRead(this.definition);
     // SAFETY: this node was constructed from a `TokenInstanceRef` of `Definition`.
     return this.#node.valueState.kind === "present"
       ? (this.#node.valueState.value as ValueOf<Definition>)
@@ -370,7 +400,7 @@ function collectEntries(plan: RulePlan, affected: ReadonlySet<LiveNode>): readon
   return [...affected]
     .filter(node => node.blueprint.definition === plan.condition.definition)
     .filter(node => matches(node, plan.condition))
-    .map(node => ({node, rule: plan.rule}));
+    .map(node => ({node, plan, rule: plan.rule}));
 }
 
 function collectAffectedNodes(node: LiveNode, into: Set<LiveNode>): void {
@@ -609,11 +639,49 @@ type HandleNode = <Root extends string, Path extends readonly string[]>(
   path: Path,
 ) => LiveToken<TokenDefinitionRef, Root, Path>;
 
+function unwatchedRead(options: {
+  readonly definition: TokenDefinitionRef;
+  readonly entry: RuleEntry;
+  readonly token: LiveToken;
+  readonly warned: Set<string>;
+}): RuleWarning | undefined {
+  if (options.entry.plan.watched.includes(options.definition)) return undefined;
+  const key = `${options.entry.rule.name}:${options.definition.name}`;
+  if (options.warned.has(key)) return undefined;
+  options.warned.add(key);
+  return {
+    definition: options.definition,
+    message: `Rule ${options.entry.rule.name} reads ${options.definition.name} but its condition does not include it; the rule will not run again when ${options.definition.name} changes. Add it to the condition or read it inside an event handler.`,
+    rule: options.entry.rule.name,
+    token: options.token,
+  };
+}
+
+function publishUnwatched(options: {
+  readonly entry: RuleEntry;
+  readonly publish: (warning: RuleWarning) => void;
+  readonly reads: ReadonlySet<TokenDefinitionRef>;
+  readonly token: LiveToken;
+  readonly warned: Set<string>;
+}): void {
+  for (const definition of options.reads) {
+    const warning = unwatchedRead({...options, definition});
+    if (warning !== undefined) options.publish(warning);
+  }
+}
+
+interface ReadLog {
+  current: Set<TokenDefinitionRef> | undefined;
+}
+
 function makeEngine(options: {
   readonly handle: HandleNode;
   readonly publish: (change: GraphChange) => void;
   readonly publishFailure: (failure: RuleFailure) => void;
+  readonly publishWarning: (warning: RuleWarning) => void;
+  readonly readLog: ReadLog;
   readonly state: GraphState;
+  readonly warned: Set<string>;
 }): RuntimeEngine {
   const {state} = options;
 
@@ -630,12 +698,37 @@ function makeEngine(options: {
   const entryStillMatches = (entry: RuleEntry): boolean =>
     state.nodes.has(entry.node.blueprint) && matches(entry.node, entry.rule.condition);
 
+  const handleRuleExit = (options_: {
+    readonly entry: RuleEntry;
+    readonly exit: Exit.Exit<void>;
+    readonly reads: ReadonlySet<TokenDefinitionRef>;
+    readonly token: LiveToken;
+  }): void => {
+    if (Exit.isFailure(options_.exit)) {
+      options.publishFailure({
+        cause: withoutStackTrace(options_.exit.cause),
+        rule: options_.entry.rule.name,
+        token: options_.token,
+      });
+      return;
+    }
+    publishUnwatched({
+      entry: options_.entry,
+      publish: options.publishWarning,
+      reads: options_.reads,
+      token: options_.token,
+      warned: options.warned,
+    });
+  };
+
   const runRule = (entry: RuleEntry): void => {
     if (!entryStillMatches(entry)) return;
     const token = options.handle(entry.node, entry.node.blueprint.definition.name, [] as const);
+    const reads = new Set<TokenDefinitionRef>();
+    options.readLog.current = reads;
     const exit = Effect.runSyncExit(Effect.sync(() => executeHandler(entry.rule.handler, token)));
-    if (Exit.isFailure(exit))
-      options.publishFailure({cause: withoutStackTrace(exit.cause), rule: entry.rule.name, token});
+    options.readLog.current = undefined;
+    handleRuleExit({entry, exit, reads, token});
   };
 
   const drain = (): void => {
@@ -734,6 +827,9 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
   const failurePubSub = yield* PubSub.unbounded<RuleFailure>();
   const listeners = new Set<(change: GraphChange) => void>();
   const failureListeners = new Set<(failure: RuleFailure) => void>();
+  const warningListeners = new Set<(warning: RuleWarning) => void>();
+  const readLog: ReadLog = {current: undefined};
+  const warned = new Set<string>();
   let operations: RuntimeOperations | undefined;
 
   const publish = (change: GraphChange): void => {
@@ -759,7 +855,12 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
       PubSub.publishUnsafe(failurePubSub, failure);
       for (const listener of failureListeners) listener(failure);
     },
+    publishWarning: warning => {
+      for (const listener of warningListeners) listener(warning);
+    },
+    readLog,
     state,
+    warned,
   });
 
   const findRelated = (
@@ -773,6 +874,9 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     del: engine.del,
     findRelated,
     handle,
+    noteRead: definition => {
+      readLog.current?.add(definition);
+    },
     set: engine.set,
     setValue: engine.setValue,
   };
@@ -801,6 +905,10 @@ export const make = Effect.fn("WhuiyRuntime.make")(function* (program: RuleProgr
     subscribeFailures: listener => {
       failureListeners.add(listener);
       return () => failureListeners.delete(listener);
+    },
+    subscribeWarnings: listener => {
+      warningListeners.add(listener);
+      return () => warningListeners.delete(listener);
     },
   } satisfies WhuiyRuntime;
 });

@@ -34,6 +34,30 @@ describe("React projection", () => {
     expect(reportedRules).toEqual(["Item.1"]);
   });
 
+  it("reports a rule read warning from the initial mount", () => {
+    const Panel = Token("Panel")();
+    const Count = Token("Count")<number>();
+    const Label = Token("Label").content<string>();
+    const warnings: string[] = [];
+    const runtime = Effect.runSync(
+      new Whuiy()
+        .rule(Panel(), function* (panel) {
+          yield* panel.get(Label).pipe(Token.setValue(String(panel.get(Count).value() ?? 0)));
+        })
+        .make(),
+    );
+    const renderer = createReactRenderer({
+      reportError: report => {
+        if (report.kind === "warning") warnings.push(report.warning.rule);
+      },
+      runtime,
+    });
+
+    renderToStaticMarkup(renderer.render(Panel(Count(0), Label(""))));
+
+    expect(warnings).toEqual(["Panel.1"]);
+  });
+
   it("groups native CSS decorators on a host", () => {
     const Card = Token("Card")();
     const runtime = Effect.runSync(new Whuiy().make());
