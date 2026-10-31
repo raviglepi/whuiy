@@ -1,5 +1,6 @@
 /** @since 0.1.0 */
 
+import type {RuleProgram} from "./compile.ts";
 import type {WhuiyRuntime} from "./graph.ts";
 import type {WhuiyEffect, WriteAddress} from "./operation.ts";
 import type {
@@ -15,6 +16,7 @@ import type {DefinitionName, DefinitionOf, LiveToken, TokenInstanceRef} from "./
 
 import {Effect} from "effect";
 
+import {compileRules} from "./compile.ts";
 import {make as makeRuntime} from "./graph.ts";
 import {RuleBundle} from "./rules.ts";
 
@@ -43,6 +45,21 @@ export class Whuiy<Registered extends RegisteredRule = never> {
   }
 
   /**
+   * Lowers the rule set to per-element dispatch tables.
+   *
+   * **When to use**
+   *
+   * Inspect the plan, or hand it to a runtime or adapter that needs the
+   * element-to-rule mapping. {@link Whuiy.make} compiles internally.
+   *
+   * @since 0.4.0
+   * @category Destructors
+   */
+  compile(): RuleProgram {
+    return compileRules(this.#rules);
+  }
+
+  /**
    * Allocates a fresh runtime for this builder's rules.
    *
    * The returned effect is synchronous and has no failure channel. Running it
@@ -53,7 +70,7 @@ export class Whuiy<Registered extends RegisteredRule = never> {
    * @category Constructors
    */
   make(): Effect.Effect<WhuiyRuntime> {
-    return makeRuntime(this.#rules);
+    return makeRuntime(this.compile());
   }
 
   rule<Condition extends TokenInstanceRef, Yielded extends WhuiyEffect<void, WriteAddress>>(

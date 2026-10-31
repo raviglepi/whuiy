@@ -6,7 +6,21 @@ export {
   /** @since 0.1.0 */
   Whuiy,
 } from "./whuiy.ts";
+export {
+  /** @since 0.4.0 */
+  compileRules,
+} from "./compile.ts";
 export type {
+  /** @since 0.4.0 */
+  RulePlan,
+  /** @since 0.4.0 */
+  RuleProgram,
+} from "./compile.ts";
+export type {
+  /** @since 0.4.0 */
+  GraphChange,
+  /** @since 0.4.0 */
+  RuleWarning,
   /** @since 0.1.0 */
   WhuiyRuntime,
   /** @since 0.1.0 */
@@ -44,6 +58,42 @@ export {
   /** @since 0.1.0 */
   Token,
 } from "./token.ts";
+export {
+  /** @since 0.4.0 */
+  Element,
+  /** @since 0.4.0 */
+  Event,
+  /** @since 0.4.0 */
+  Property,
+  /** @since 0.4.0 */
+  Style,
+} from "./primitives.ts";
+export type {
+  /** @since 0.4.0 */
+  ElementFamily,
+  /** @since 0.4.0 */
+  ElementToken,
+  /** @since 0.4.0 */
+  EventFamily,
+  /** @since 0.4.0 */
+  EventProperty,
+  /** @since 0.4.0 */
+  EventToken,
+  /** @since 0.4.0 */
+  PropertyFamily,
+  /** @since 0.4.0 */
+  PropertyName,
+  /** @since 0.4.0 */
+  PropertyToken,
+  /** @since 0.4.0 */
+  PropertyValue,
+  /** @since 0.4.0 */
+  StyleFamily,
+  /** @since 0.4.0 */
+  StyleProperty,
+  /** @since 0.4.0 */
+  StyleToken,
+} from "./primitives.ts";
 /** @internal */
 export const isTokenInstance = isTokenInstanceInternal;
 export type {

@@ -69,4 +69,22 @@ describe("owned live graph", () => {
       yield* second.release;
     }),
   );
+
+  it.effect("keeps independent runtimes from seeing each other's writes", () =>
+    Effect.gen(function* () {
+      const Label = Token("Label")<string>();
+      const Item = Token("Item")();
+      const first = yield* new Whuiy().make();
+      const second = yield* new Whuiy().make();
+      const firstMounted = yield* first.mount(Item(Label("first")));
+      const secondMounted = yield* second.mount(Item(Label("second")));
+
+      yield* firstMounted.roots[0]!.get(Label).pipe(Token.setValue("changed"));
+
+      expect(firstMounted.roots[0]!.get(Label).value()).toBe("changed");
+      expect(secondMounted.roots[0]!.get(Label).value()).toBe("second");
+      yield* firstMounted.release;
+      yield* secondMounted.release;
+    }),
+  );
 });

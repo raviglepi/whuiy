@@ -1,0 +1,21 @@
+{
+  "name": "@whuiy/manual",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "generate": "bun generate.ts",
+    "build": "bun generate.ts --check && bunx tsc --noEmit -p tsconfig.json && vite build",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "effect": "4.1.0"
+  },
+  "devDependencies": {
+    "@whuiy/codegen": "workspace:*",
+    "typescript": "^7",
+    "vite": "^8.2.2",
+    "whuiy": "workspace:*"
+  }
+}

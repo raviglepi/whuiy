@@ -4,7 +4,7 @@ import type {ErrorReporter} from "./errors.tsx";
 
 import {RegistryProvider, useAtomSuspense} from "@effect/atom-react";
 import {Effect, Fiber, Layer, Scope, Stream} from "effect";
-import {Atom} from "effect/unstable/reactivity";
+import {Atom} from "effect/reactivity";
 
 import {createElement, memo, useMemo} from "react";
 import {isTokenInstance} from "whuiy";
@@ -54,6 +54,16 @@ function makeListenerDispatcherLayer(reportError: ErrorReporter) {
 }
 
 /** @internal */
+/** @internal */
+function subscribeWarnings(props: ProjectionProps): Effect.Effect<void, never, Scope.Scope> {
+  return Effect.acquireRelease(
+    Effect.sync(() =>
+      props.runtime.subscribeWarnings(warning => props.reportError({kind: "warning", warning})),
+    ),
+    unsubscribe => Effect.sync(() => unsubscribe()),
+  ).pipe(Effect.asVoid);
+}
+
 function makeProjectionStream({reportError, roots, runtime}: ProjectionProps) {
   return Stream.scoped(
     Stream.unwrap(
@@ -71,6 +81,7 @@ function makeProjectionStream({reportError, roots, runtime}: ProjectionProps) {
           ),
           {startImmediately: true},
         );
+        yield* subscribeWarnings({reportError, roots, runtime});
         const mounted = yield* Effect.acquireRelease(
           runtime.mount(...roots),
           mounted => mounted.release,
@@ -91,7 +102,7 @@ function makeProjectionAtom(props: ProjectionProps) {
 }
 
 /** @internal */
-function projectServer({reportError, roots, runtime}: ProjectionProps): readonly ReactElement[] {
+function projectServer({reportError, roots, runtime}: ProjectionProps): readonly ReactNode[] {
   return Effect.runSync(
     Effect.scoped(
       Effect.gen(function* () {
@@ -108,6 +119,7 @@ function projectServer({reportError, roots, runtime}: ProjectionProps): readonly
           ),
           {startImmediately: true},
         );
+        yield* subscribeWarnings({reportError, roots, runtime});
         const mounted = yield* Effect.acquireRelease(
           runtime.mount(...roots),
           mounted => mounted.release,
@@ -121,9 +133,7 @@ function projectServer({reportError, roots, runtime}: ProjectionProps): readonly
   );
 }
 
-const ClientProjection = memo(function ClientProjection(
-  props: ProjectionProps,
-): readonly ReactElement[] {
+const ClientProjection = memo(function ClientProjection(props: ProjectionProps): ReactNode {
   const {reportError, roots, runtime} = props;
   const atom = useMemo(
     () => makeProjectionAtom({reportError, roots, runtime}),
@@ -146,7 +156,7 @@ function sameRoots(left: readonly TokenRoot[], right: readonly TokenRoot[]): boo
   return left.every((root, index) => rootId(root) === rootId(right[index]!));
 }
 
-function Projection(props: ProjectionProps): ReactElement | readonly ReactElement[] {
+function Projection(props: ProjectionProps): ReactNode {
   return typeof document === "undefined"
     ? projectServer(props)
     : createElement(ClientProjection, {...props, key: props.roots.map(rootId).join(":")});

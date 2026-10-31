@@ -1,17 +1,20 @@
 import type * as React from "react";
+import type {ReactNode} from "react";
+import type {DecoratorMetadata, ElementMetadata} from "whuiy/primitives";
 import type {LiveToken, TokenDefinitionRef, TokenValue} from "whuiy";
 
 import {Context, Effect, Predicate, Schema} from "effect";
 
-import {cloneElement, createElement} from "react";
+import {cloneElement, createElement, isValidElement} from "react";
+import {getDecoratorMetadata, getElementMetadata, isContentDefinition} from "whuiy/primitives";
 import {ProjectionError} from "./errors.tsx";
-import {getDecoratorMetadata, getElementMetadata} from "./primitives.ts";
-import {StyleValueSchema, toCssValue} from "./semantic-values.ts";
 
 type EventHandler = (event: React.SyntheticEvent<HTMLElement>) => Effect.Effect<void>;
 type Handler = {readonly tokenId: number; readonly value: EventHandler};
+type PropertyValues = Readonly<Record<string, string | number | boolean>>;
 interface Decorators {
   readonly events: ReadonlyMap<string, readonly Handler[]>;
+  readonly properties: PropertyValues;
   readonly style: React.CSSProperties;
 }
 type HostProps = React.HTMLAttributes<HTMLElement> & {
@@ -30,9 +33,10 @@ export class ListenerDispatcher extends Context.Service<
       readonly tokenId: number;
     }) => Effect.Effect<void>;
   }
->()("@whuiy/react/ListenerDispatcher") {}
+>()("@whuiy/react/projection/ListenerDispatcher") {}
 
-const emptyDecorators: Decorators = {events: new Map(), style: {}};
+const emptyDecorators: Decorators = {events: new Map(), properties: {}, style: {}};
+const StyleValueSchema = Schema.Union([Schema.String, Schema.Finite]);
 function reads(token: LiveToken, definition: TokenDefinitionRef): TokenValue {
   if (token.definition !== definition) {
     throw new ProjectionError({
@@ -75,38 +79,72 @@ function styleValue(options: {
   readonly token: LiveToken;
   readonly value: TokenValue;
 }): string | number {
-  if (Schema.is(StyleValueSchema)(options.value)) return toCssValue(options.value);
+  if (Schema.is(StyleValueSchema)(options.value)) return options.value;
   throw new ProjectionError({
     cause: new Error(`${options.token.definition.name} requires a CSS-compatible style value`),
     tokenId: options.token.id,
   });
 }
 
+function propertyValue(options: {
+  readonly token: LiveToken;
+  readonly value: TokenValue;
+}): string | number | boolean {
+  if (Schema.is(StyleValueSchema)(options.value) || Predicate.isBoolean(options.value))
+    return options.value;
+  throw new ProjectionError({
+    cause: new Error(`${options.token.definition.name} requires a primitive property value`),
+    tokenId: options.token.id,
+  });
+}
+
 function collectDecorator(options: {
   readonly events: Map<string, readonly Handler[]>;
+  readonly properties: Record<string, string | number | boolean>;
   readonly style: React.CSSProperties;
   readonly token: LiveToken;
 }): void {
   const metadata = getDecoratorMetadata(options.token.definition);
   if (metadata === undefined) return;
   const value = reads(options.token, metadata.definition);
+  collectDecoratorKind({...options, metadata, value});
+}
+
+function collectDecoratorKind(options: {
+  readonly events: Map<string, readonly Handler[]>;
+  readonly metadata: DecoratorMetadata;
+  readonly properties: Record<string, string | number | boolean>;
+  readonly style: React.CSSProperties;
+  readonly token: LiveToken;
+  readonly value: TokenValue;
+}): void {
+  const metadata = options.metadata;
   if (metadata.kind === "style") {
-    Object.assign(options.style, {[metadata.property]: styleValue({token: options.token, value})});
+    Object.assign(options.style, {
+      [metadata.property]: styleValue({token: options.token, value: options.value}),
+    });
+    return;
+  }
+  if (metadata.kind === "property") {
+    Object.assign(options.properties, {
+      [metadata.property]: propertyValue({token: options.token, value: options.value}),
+    });
     return;
   }
   appendListener({
     events: options.events,
     property: metadata.property,
     token: options.token,
-    value,
+    value: options.value,
   });
 }
 
 function collectDecorators(tokens: readonly LiveToken[], inherited: Decorators): Decorators {
   const events = new Map(inherited.events);
+  const properties = {...inherited.properties};
   const style: React.CSSProperties = {...inherited.style};
-  for (const token of tokens) collectDecorator({events, style, token});
-  return {events, style};
+  for (const token of tokens) collectDecorator({events, properties, style, token});
+  return {events, properties, style};
 }
 
 function isDecorator(token: LiveToken): boolean {
@@ -144,6 +182,7 @@ function applyDecorators(options: {
     const listener = makeListener({dispatcher: options.dispatcher, listeners});
     if (listener !== undefined) Object.assign(changes, {[property]: listener});
   }
+  Object.assign(changes, options.decorators.properties);
   return cloneElement(options.element, changes);
 }
 
@@ -157,15 +196,26 @@ function readStyle(element: React.ReactElement): React.CSSProperties | undefined
   return Schema.is(StylePropsSchema)(element.props) ? element.props.style : undefined;
 }
 
+function hostFor(options: {
+  readonly children: readonly ReactNode[];
+  readonly element: ElementMetadata;
+  readonly tokenId: number;
+}): React.ReactElement {
+  const props: HostProps =
+    options.element.tag === "button"
+      ? {key: options.tokenId, type: "button"}
+      : {key: options.tokenId};
+  if (options.children.length === 0) return createElement<HostProps>(options.element.tag, props);
+  return createElement<HostProps>(options.element.tag, props, options.children);
+}
+
 function elementHost(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly token: LiveToken;
 }): React.ReactElement | undefined {
   const element = getElementMetadata(options.token.definition);
   if (element === undefined) return undefined;
-  const props: HostProps =
-    element.tag === "button" ? {key: options.token.id, type: "button"} : {key: options.token.id};
-  return createElement<HostProps>(element.tag, props, options.children);
+  return hostFor({children: options.children, element, tokenId: options.token.id});
 }
 
 function nextPath(path: ReadonlySet<number>, token: LiveToken): ReadonlySet<number> {
@@ -182,16 +232,16 @@ function projectContent(options: {
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly path: ReadonlySet<number>;
   readonly relations: readonly LiveToken[];
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   const content = options.relations.filter(token => !isDecorator(token));
   return content.flatMap(token =>
     projectToken({dispatcher: options.dispatcher, path: options.path, token}),
   );
 }
 
-function onlyChild(children: readonly React.ReactElement[]): React.ReactElement {
+function onlyElement(children: readonly ReactNode[]): React.ReactElement | undefined {
   const child = children[0];
-  if (child === undefined) throw new Error("Expected one projected child");
+  if (children.length !== 1 || !isValidElement(child)) return undefined;
   return child;
 }
 
@@ -199,7 +249,7 @@ function decorateHost(options: {
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly host: React.ReactElement;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   return [
     applyDecorators({
       decorators: options.decorators,
@@ -210,28 +260,27 @@ function decorateHost(options: {
 }
 
 function decorateContent(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   if (options.children.length === 0) return [];
   const element =
-    options.children.length === 1
-      ? onlyChild(options.children)
-      : createElement<HostProps>("div", {key: options.token.id}, options.children);
+    onlyElement(options.children) ??
+    createElement<HostProps>("div", {key: options.token.id}, options.children);
   return [
     applyDecorators({decorators: options.decorators, dispatcher: options.dispatcher, element}),
   ];
 }
 
 function decorateChildren(options: {
-  readonly children: readonly React.ReactElement[];
+  readonly children: readonly ReactNode[];
   readonly decorators: Decorators;
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly host: React.ReactElement | undefined;
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
   return options.host === undefined
     ? decorateContent(options)
     : decorateHost({
@@ -241,11 +290,17 @@ function decorateChildren(options: {
       });
 }
 
+function contentOf(token: LiveToken): readonly ReactNode[] {
+  const value = token.value();
+  return Schema.is(StyleValueSchema)(value) ? [String(value)] : [];
+}
+
 function projectToken(options: {
   readonly dispatcher: ListenerDispatcher["Service"];
   readonly path: ReadonlySet<number>;
   readonly token: LiveToken;
-}): readonly React.ReactElement[] {
+}): readonly ReactNode[] {
+  if (isContentDefinition(options.token.definition)) return contentOf(options.token);
   const path = nextPath(options.path, options.token);
   const relations = options.token.tokens();
   const decorators = collectDecorators(relations, emptyDecorators);
@@ -263,7 +318,7 @@ function projectToken(options: {
 /** @internal */
 export const project = Effect.fn("ReactProjection.project")(function* (options: {
   readonly roots: readonly LiveToken[];
-}): Effect.fn.Return<readonly React.ReactElement[], never, ListenerDispatcher> {
+}): Effect.fn.Return<readonly ReactNode[], never, ListenerDispatcher> {
   const dispatcher = yield* ListenerDispatcher;
   return options.roots.flatMap(token => projectToken({dispatcher, path: new Set(), token}));
 });
