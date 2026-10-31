@@ -3,7 +3,9 @@
 Whuiy describes a user interface as a graph of facts and the rules that follow
 from them. Adapters project that graph into React or plain DOM. A compiler
 lowers the rules to per-element plans, the static parts of a page render to HTML
-at build time, and the browser patches only the nodes whose tokens changed.
+at build time, a declarative tier compiles certain programs to manual DOM code
+with no runtime at all, and the browser patches only the nodes whose tokens
+changed.
 
 ```ts
 import {Effect} from "effect";
@@ -132,13 +134,93 @@ color are part of the shipped markup.
 The remaining cost for a partially dynamic page is honest: the runtime mounts in
 the browser. Only descriptions that do not change erase completely.
 
+## Compiled to manual DOM code
+
+`@whuiy/codegen` goes one step further. A program declares its state cells,
+event rules, derived text, visibility, dynamic styles, and list regions, and
+`compile` lowers all of it to a self-contained module — no rules, no dispatch
+tables, no `whuiy` import:
+
+```ts
+const program = define(
+  {description, runtime: "./handlers.ts", state: [Count(0), Query(""), Theme("light")] as const},
+  rules => [
+    rules.on(Increment, Event.OnClick, handleIncrement),
+    rules.on(Search, Event.OnInput, handleQuery),
+    rules.derive(Label, [Count], labelText),
+    rules.list(Rows, [Query], filterRows),
+    rules.show(Results, [Query], hasMatches),
+    rules.style(Section, Style.BackgroundColor, [Theme], themeBackground),
+  ],
+);
+```
+
+The generated `mount(parent)` is what a person would have written by hand:
+
+```ts
+export function mount(parent: HTMLElement): () => void {
+  let count = 0;
+  let query = "";
+  const section = document.createElement("section");
+  section.style.display = "grid";
+  // … elements, styles, text nodes …
+  button.addEventListener("click", () => {
+    Effect.runFork(handleIncrement(setters));
+  });
+  input.addEventListener("input", event => {
+    Effect.runFork(handleQuery(setters, event));
+  });
+  function updateLabel(): void {
+    label.data = String(labelText({count}));
+  }
+  function updateRows(): void {
+    ul.replaceChildren(...filterRows({query}).map(createRow));
+  }
+  const setters = {
+    count: {
+      set: (next: number): void => {
+        count = next;
+        updateLabel();
+      },
+      // …
+    },
+    // …
+  };
+  updateLabel();
+  updateRows();
+  return () => {
+    parent.removeChild(section);
+  };
+}
+```
+
+The compiler computes which updates each setter calls from the declared
+dependencies, so propagation is plain function calls. Handlers and mappers are
+imported from the program's `runtime` module, which imports only `effect`;
+nothing from `whuiy` reaches the bundle. Listeners run handlers with
+`Effect.runFork`, so a synchronous handler updates the DOM before the event
+dispatch returns and an asynchronous one keeps running on the runtime.
+
+`examples/manual` is the counter, theme toggle, and filtered list above. Its
+committed `src/generated.ts` is checked by `bun run generate --check` and
+typechecked in the example build. The built app is 24.1 kB (8.8 kB gzip), and
+all of it is `effect` plus the generated mount. The compiler rejects
+descriptions it cannot lower honestly: static event tokens, ambiguous targets,
+styles on non-element tokens, list templates without exactly one content token,
+and targets that sit inside another list's template.
+
+The trade is explicit: the declarative form supports the rule shapes the
+compiler understands, while the runtime engine still handles arbitrary rule
+generators.
+
 ## Packages
 
-| Package        | What it does                                              |
-| -------------- | --------------------------------------------------------- |
-| `whuiy`        | Tokens, rules, the graph runtime, and the rule compiler   |
-| `@whuiy/dom`   | Retained-DOM rendering and static HTML                    |
-| `@whuiy/react` | React projection, error boundary, and atom-backed updates |
+| Package          | What it does                                              |
+| ---------------- | --------------------------------------------------------- |
+| `whuiy`          | Tokens, rules, the graph runtime, and the rule compiler   |
+| `@whuiy/dom`     | Retained-DOM rendering and static HTML                    |
+| `@whuiy/react`   | React projection, error boundary, and atom-backed updates |
+| `@whuiy/codegen` | Declarative rules lowered to plain DOM and Effect code    |
 
 ## Vocabulary
 

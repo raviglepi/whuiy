@@ -5,6 +5,10 @@ export default defineConfig({
   objectWrap: "collapse",
   bracketSameLine: true,
   bracketSpacing: false,
+  ignorePatterns: [
+    // Compiler output; `examples/manual` checks it against `@whuiy/codegen`.
+    "examples/manual/src/generated.ts",
+  ],
   jsdoc: {
     commentLineStrategy: "singleLine",
     lineWrappingStyle: "balance",

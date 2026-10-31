@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {"lib": ["ESNext", "DOM", "DOM.Iterable"], "types": ["bun"], "noEmit": true},
+  "include": ["src/**/*.ts", "generate.ts"]
+}

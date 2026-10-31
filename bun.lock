@@ -25,6 +25,18 @@
         "vitest": "^4.1.11",
       },
     },
+    "examples/manual": {
+      "name": "@whuiy/manual",
+      "dependencies": {
+        "effect": "4.1.0",
+      },
+      "devDependencies": {
+        "@whuiy/codegen": "workspace:*",
+        "typescript": "^7",
+        "vite": "^8.2.2",
+        "whuiy": "workspace:*",
+      },
+    },
     "examples/playground": {
       "name": "@whuiy/playground",
       "dependencies": {
@@ -58,6 +70,14 @@
         "typescript": "^7",
         "vite": "^8.2.2",
         "vitest": "^4.1.11",
+      },
+    },
+    "packages/codegen": {
+      "name": "@whuiy/codegen",
+      "version": "0.3.0",
+      "dependencies": {
+        "effect": "4.1.0",
+        "whuiy": "workspace:*",
       },
     },
     "packages/core": {
@@ -454,7 +474,11 @@
 
     "@vitest/utils": ["@vitest/utils@4.1.11", "", { "dependencies": { "@vitest/pretty-format": "4.1.11", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ=="],
 
+    "@whuiy/codegen": ["@whuiy/codegen@workspace:packages/codegen"],
+
     "@whuiy/dom": ["@whuiy/dom@workspace:packages/dom"],
+
+    "@whuiy/manual": ["@whuiy/manual@workspace:examples/manual"],
 
     "@whuiy/playground": ["@whuiy/playground@workspace:examples/playground"],
 

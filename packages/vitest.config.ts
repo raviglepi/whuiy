@@ -12,7 +12,11 @@ export default defineConfig({
         test: {
           name: "unit",
           exclude: ["**/*.bench.ts"],
-          include: ["core/test/**/*.test.ts", "react/test/**/*.test.ts*"],
+          include: [
+            "codegen/test/**/*.test.ts",
+            "core/test/**/*.test.ts",
+            "react/test/**/*.test.ts*",
+          ],
         },
       },
       {
