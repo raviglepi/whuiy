@@ -2,6 +2,7 @@ import {define} from "@whuiy/codegen";
 import {Element, Event, Style, Token} from "whuiy";
 import {
   filterRows,
+  handleDouble,
   handleIncrement,
   handleQuery,
   handleTheme,
@@ -17,6 +18,7 @@ const Theme = Token("Theme")<string>();
 const Label = Token("Label").content<string>();
 const Text = Token("Text").content<string>();
 const Increment = Token("Increment")();
+const Double = Token("Double")();
 const ToggleTheme = Token("ToggleTheme")();
 const Row = Token("Row")();
 const Rows = Token("Rows")();
@@ -61,6 +63,7 @@ const Section = Element.Section(
   ),
   Element.Div(
     Increment(button("+ 1")),
+    Double(button("double")),
     ToggleTheme(button("toggle theme")),
     Style.Display("flex"),
     Style.Gap("0.5rem"),
@@ -77,6 +80,7 @@ export const program = define(
   {description, runtime: "./handlers.ts", state: [Count(0), Query(""), Theme("light")] as const},
   rules => [
     rules.on(Increment, Event.OnClick, handleIncrement),
+    rules.on(Double, Event.OnClick, handleDouble),
     rules.on(ToggleTheme, Event.OnClick, handleTheme),
     rules.on(Search, Event.OnInput, handleQuery),
     rules.derive(Label, [Count], labelText),

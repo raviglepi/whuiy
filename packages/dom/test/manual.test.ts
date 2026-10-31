@@ -1,5 +1,7 @@
 import {describe, expect, it} from "vitest";
 
+import {Effect} from "effect";
+
 import {mount} from "../../../examples/manual/src/generated.ts";
 
 function incrementButton(parent: HTMLElement): HTMLButtonElement {
@@ -27,8 +29,14 @@ function listOf(parent: HTMLElement): HTMLElement {
 }
 
 function themeButton(parent: HTMLElement): HTMLButtonElement {
-  const button = parent.querySelectorAll("button")[1];
+  const button = parent.querySelectorAll("button")[2];
   if (button === undefined) throw new Error("Expected the theme button");
+  return button;
+}
+
+function doubleButton(parent: HTMLElement): HTMLButtonElement {
+  const button = parent.querySelectorAll("button")[1];
+  if (button === undefined) throw new Error("Expected the double button");
   return button;
 }
 
@@ -69,6 +77,19 @@ describe("compiled manual app", () => {
       "row 128",
       "row 129",
     ]);
+  });
+
+  it("applies an async handler's write after the effect settles", async () => {
+    const parent = document.createElement("main");
+    mount(parent);
+
+    incrementButton(parent).dispatchEvent(new MouseEvent("click", {bubbles: true}));
+    doubleButton(parent).dispatchEvent(new MouseEvent("click", {bubbles: true}));
+    expect(parent.querySelector("p")?.textContent).toBe("1");
+
+    await Effect.runPromise(Effect.sleep("20 millis"));
+
+    expect(parent.querySelector("p")?.textContent).toBe("2");
   });
 
   it("mounts twice without sharing state", () => {

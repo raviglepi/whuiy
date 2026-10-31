@@ -201,10 +201,11 @@ nothing from `whuiy` reaches the bundle. Listeners run handlers with
 `Effect.runFork`, so a synchronous handler updates the DOM before the event
 dispatch returns and an asynchronous one keeps running on the runtime.
 
-`examples/manual` is the counter, theme toggle, and filtered list above. Its
-committed `src/generated.ts` is checked by `bun run generate --check` and
-typechecked in the example build. The built app is 24.1 kB (8.8 kB gzip), and
-all of it is `effect` plus the generated mount. The compiler rejects
+`examples/manual` is the counter, theme toggle, double (async), and filtered
+list above. Its committed `src/generated.ts` is checked by
+`bun run generate --check` and typechecked in the example build. The built app
+is 32.6 kB (11.5 kB gzip): the async handler pulls in Effect's clock and
+scheduler, and none of it is `whuiy`. The compiler rejects
 descriptions it cannot lower honestly: static event tokens, ambiguous targets,
 styles on non-element tokens, list templates without exactly one content token,
 and targets that sit inside another list's template.

@@ -29,6 +29,13 @@ export const handleTheme = (setters: Setters<AppState>) =>
   Effect.sync(() => setters.theme.update(theme => (theme === "dark" ? "light" : "dark")));
 
 /** @since 0.4.0 */
+export const handleDouble = (setters: Setters<AppState>) =>
+  Effect.gen(function* () {
+    yield* Effect.sleep("1 millis");
+    setters.count.update(current => current * 2);
+  });
+
+/** @since 0.4.0 */
 export const labelText = (state: {readonly count: number}): string => String(state.count);
 
 /** @since 0.4.0 */

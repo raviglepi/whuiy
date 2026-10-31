@@ -2,7 +2,7 @@
 
 import {Effect} from "effect";
 
-import {filterRows, handleIncrement, handleQuery, handleTheme, hasMatches, labelText, themeBackground, themeForeground} from "./handlers.ts";
+import {filterRows, handleDouble, handleIncrement, handleQuery, handleTheme, hasMatches, labelText, themeBackground, themeForeground} from "./handlers.ts";
 
 export function mount(parent: HTMLElement): () => void {
   let count = 0;
@@ -42,9 +42,14 @@ export function mount(parent: HTMLElement): () => void {
   div.append(button);
   const button2 = document.createElement("button");
   button2.style.padding = "0.5rem 1rem";
-  const text3 = document.createTextNode("toggle theme");
+  const text3 = document.createTextNode("double");
   button2.append(text3);
   div.append(button2);
+  const button3 = document.createElement("button");
+  button3.style.padding = "0.5rem 1rem";
+  const text4 = document.createTextNode("toggle theme");
+  button3.append(text4);
+  div.append(button3);
   section.append(div);
   const input = document.createElement("input");
   input.style.padding = "0.375rem 0.5rem";
@@ -66,6 +71,9 @@ export function mount(parent: HTMLElement): () => void {
     Effect.runFork(handleIncrement(setters));
   });
   button2.addEventListener("click", () => {
+    Effect.runFork(handleDouble(setters));
+  });
+  button3.addEventListener("click", () => {
     Effect.runFork(handleTheme(setters));
   });
   input.addEventListener("input", event => {
@@ -77,8 +85,8 @@ export function mount(parent: HTMLElement): () => void {
   function createRow(value: string) {
     const li = document.createElement("li");
     li.style.padding = "0.125rem 0";
-    const text4 = document.createTextNode(value);
-    li.append(text4);
+    const text5 = document.createTextNode(value);
+    li.append(text5);
     return li;
   }
   function updateRows(): void {
