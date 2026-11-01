@@ -1,160 +1,99 @@
 /** @since 0.4.0 */
 
-import {Element, Property, Style} from "whuiy";
+import {Element, Style} from "whuiy";
 import {mono, radius, sans, tone} from "./design.ts";
-import {Hoverable, Text} from "./tokens.ts";
+import {Text} from "./tokens.ts";
 
-/**
- * Every helper returns fresh token instances. A token instance is a node in
- * the graph, so sharing one across two elements would make them one fact.
- */
+/** Every helper returns fresh token instances: a token instance is a node. */
 
-/** Running text: 14px, generous leading, a soft reading colour. */
 export const prose = () =>
   [
     Style.FontFamily(sans),
-    Style.FontSize("14px"),
-    Style.LineHeight("1.7"),
+    Style.FontSize("13.5px"),
+    Style.LineHeight("1.65"),
     Style.Color(tone.body),
-    Style.Margin("0 0 14px"),
+    Style.Margin("0"),
     Style.TextWrap("pretty"),
   ] as const;
 
-/** A page title. Big text is tightened. */
-export const title = () =>
+export const display = () =>
   [
     Style.FontFamily(sans),
-    Style.FontSize("21px"),
+    Style.FontSize("26px"),
     Style.FontWeight("600"),
-    Style.LetterSpacing("-0.015em"),
-    Style.LineHeight("1.25"),
+    Style.LetterSpacing("-0.02em"),
+    Style.LineHeight("1.15"),
     Style.Color(tone.ink),
     Style.Margin("0 0 10px"),
-    Style.TextWrap("balance"),
   ] as const;
 
-/** A section heading inside an essay. */
-export const heading = () =>
+export const label = () =>
   [
     Style.FontFamily(sans),
-    Style.FontSize("14px"),
-    Style.FontWeight("600"),
-    Style.LetterSpacing("-0.005em"),
-    Style.Color(tone.ink),
-    Style.Margin("28px 0 10px"),
-    Style.LineHeight("1.4"),
-  ] as const;
-
-/** Small caps label, used for chapters and counts. */
-export const eyebrow = () =>
-  [
-    Style.FontFamily(sans),
-    Style.FontSize("11px"),
+    Style.FontSize("10px"),
     Style.FontWeight("500"),
-    Style.LetterSpacing("0.05em"),
+    Style.LetterSpacing("0.08em"),
     Style.TextTransform("uppercase"),
-    Style.LineHeight("1.4"),
+    Style.Color(tone.faint),
+    Style.LineHeight("1"),
   ] as const;
 
-/** Secondary text. */
-export const small = () =>
-  [Style.FontFamily(sans), Style.FontSize("12.5px"), Style.LineHeight("1.6")] as const;
+export const ruleChip = (value: string) =>
+  Element.Code(
+    Text(value),
+    Style.FontFamily(mono),
+    Style.FontSize("10.5px"),
+    Style.Color(tone.muted),
+    Style.BackgroundColor(tone.wash),
+    Style.BorderRadius("5px"),
+    Style.Padding("3px 6px"),
+  );
 
-/** A hairline that reads as a rule, not a border. */
 export const hairline = () =>
   [Style.Height("1px"), Style.BackgroundColor(tone.hairline), Style.Flex("1")] as const;
 
-/** The base of every boxed control on the site. */
-export const buttonBase = () =>
+export const button = () =>
   [
     Style.Appearance("none"),
+    Style.FontFamily(sans),
+    Style.FontSize("12px"),
+    Style.LineHeight("1"),
+    Style.Color(tone.muted),
     Style.BackgroundColor("transparent"),
     Style.Border("1px solid " + tone.hairline),
-    Style.BoxShadow("none"),
-    Style.Transform("none"),
     Style.BorderRadius(radius.control),
-    Style.Color(tone.muted),
-    Style.FontFamily(sans),
-    Style.FontSize("12px"),
-    Style.LineHeight("1"),
-    Style.Padding("6px 9px"),
-    Style.Display("inline-flex"),
-    Style.AlignItems("center"),
-    Style.Gap("6px"),
+    Style.Padding("7px 10px"),
     Style.Cursor("pointer"),
-    Style.Transition("background-color 140ms ease, transform 140ms ease, color 140ms ease"),
+    Style.Transition("background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease"),
   ] as const;
 
-/** A plain text control: no box until it is hovered. */
-export const quietButton = () =>
+export const iconButton = () =>
   [
     Style.Appearance("none"),
-    Style.BackgroundColor("transparent"),
-    Style.Border("none"),
-    Style.BoxShadow("none"),
-    Style.Transform("none"),
-    Style.BorderRadius(radius.control),
-    Style.Color(tone.muted),
     Style.FontFamily(sans),
-    Style.FontSize("12px"),
     Style.LineHeight("1"),
-    Style.Padding("6px 7px"),
-    Style.Display("inline-flex"),
-    Style.AlignItems("center"),
-    Style.Gap("6px"),
-    Style.Cursor("pointer"),
-    Style.Transition("background-color 140ms ease, color 140ms ease"),
+    Style.Color(tone.muted),
+    Style.BackgroundColor("transparent"),
+    Style.Border("1px solid " + tone.hairline),
+    Style.Display("inline-grid"),
+    Style.PlaceItems("center"),
+    Style.Padding("0"),
+    Style.Width("26px"),
+    Style.Height("26px"),
+    Style.BorderRadius("50%"),
+    Style.FontSize("11px"),
   ] as const;
 
-export const linkBase = () =>
+export const card = () =>
   [
-    Style.Color("inherit"),
-    Style.TextDecoration("underline"),
-    Style.TextDecorationColor(tone.strong),
-    Style.TextUnderlineOffset("2px"),
+    Style.Display("grid"),
+    Style.Gap("8px"),
+    Style.AlignContent("start"),
+    Style.Padding("14px"),
+    Style.BackgroundColor(tone.card),
+    Style.BorderRadius(radius.panel),
+    Style.Border("1px solid " + tone.hairline),
   ] as const;
 
-export const inlineCode = () =>
-  [
-    Style.FontFamily(mono),
-    Style.FontSize("0.86em"),
-    Style.BackgroundColor(tone.wash),
-    Style.Color(tone.ink),
-    Style.Padding("1px 4px"),
-    Style.BorderRadius("4px"),
-  ] as const;
-
-/** Marks an element whose pointer facts a rule publishes. */
-export const hoverable = () => [Hoverable()] as const;
-
-const codePattern = /(`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
-const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/;
-
-const at = (parts: readonly string[], index: number): string => parts[index] ?? "";
-
-const markdownLink = (part: string) => {
-  const parts = linkPattern.exec(part);
-  if (parts === null) return Text(part);
-  return Element.A(
-    Text(at(parts, 1)),
-    Property.Href(at(parts, 2)),
-    Property.Rel("noreferrer"),
-    ...linkBase(),
-  );
-};
-
-const piece = (part: string) => {
-  if (part.startsWith("`")) return Element.Code(Text(part.slice(1, -1)), ...inlineCode());
-  if (part.startsWith("[")) return markdownLink(part);
-  return Text(part);
-};
-
-/** Renders inline backticks and markdown links inside one paragraph. */
-export const inline = (value: string) =>
-  value
-    .split(codePattern)
-    .filter(part => part.length > 0)
-    .map(piece);
-
-/** A paragraph of prose with its inline code and links. */
-export const paragraph = (value: string) => Element.P(...prose(), ...inline(value));
+export const quietLink = () =>
+  [Style.Color("inherit"), Style.TextDecoration("none"), Style.FontSize("12.5px")] as const;

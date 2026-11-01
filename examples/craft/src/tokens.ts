@@ -5,133 +5,84 @@ import {Token} from "whuiy";
 /** Content: the only token whose value is projected as text. */
 export const Text = Token("Text").content<string>();
 
-// The two facts the whole document follows.
+// The page.
 /** @since 0.4.0 */
 export const Theme = Token("Theme").single<string>();
 /** @since 0.4.0 */
-export const Route = Token("Route").single<string>();
-/** @since 0.4.0 */
-export const Narrow = Token("Narrow").single<boolean>();
-
-// Structure.
-/** @since 0.4.0 */
 export const Craft = Token("Craft")();
 /** @since 0.4.0 */
-export const Chrome = Token("Chrome")();
+export const Body = Token("Body")();
 /** @since 0.4.0 */
-export const Stack = Token("Stack")();
+export const Top = Token("Top")();
 /** @since 0.4.0 */
-export const Page = Token("Page")();
+export const ThemeSwitch = Token("ThemeSwitch")();
 /** @since 0.4.0 */
-export const Slug = Token("Slug").single<string>();
-/** @since 0.4.0 */
-export const Sidebar = Token("Sidebar")();
-/** @since 0.4.0 */
-export const TopNav = Token("TopNav")();
-/** @since 0.4.0 */
-export const ChapterList = Token("ChapterList")();
-/** @since 0.4.0 */
-export const NavEntry = Token("NavEntry")();
-/** @since 0.4.0 */
-export const Columns = Token("Columns")();
-/** @since 0.4.0 */
-export const Entry = Token("Entry")();
-/** @since 0.4.0 */
-export const Control = Token("Control")();
+export const Gallery = Token("Gallery")();
+
+// Facts the tips read.
 /** @since 0.4.0 */
 export const Hovered = Token("Hovered").single<boolean>();
 /** @since 0.4.0 */
 export const Pressed = Token("Pressed").single<boolean>();
 /** @since 0.4.0 */
-export const Hoverable = Token("Hoverable")();
+export const Moved = Token("Moved").single<boolean>();
 /** @since 0.4.0 */
-export const Chip = Token("Chip")();
+export const Smooth = Token("Smooth").single<boolean>();
 /** @since 0.4.0 */
-export const Selected = Token("Selected").single<boolean>();
-
-// Search.
+export const MoreAbove = Token("MoreAbove").single<boolean>();
 /** @since 0.4.0 */
-export const Sheet = Token("Sheet")();
-/** @since 0.4.0 */
-export const Open = Token("Open").single<boolean>();
-/** @since 0.4.0 */
-export const Query = Token("Query").single<string>();
-/** @since 0.4.0 */
-export const Results = Token("Results")();
-/** @since 0.4.0 */
-export const SearchRow = Token("SearchRow")();
-/** @since 0.4.0 */
-export const SearchEmpty = Token("SearchEmpty")();
-/** @since 0.4.0 */
-export const SheetInput = Token("SheetInput")();
-/** @since 0.4.0 */
-export const SheetClose = Token("SheetClose")();
-/** @since 0.4.0 */
-export const SheetHeader = Token("SheetHeader")();
-/** @since 0.4.0 */
-export const SearchTrigger = Token("SearchTrigger")();
-
-// Demos: each carries its own state so a page is a closed description.
-/** @since 0.4.0 */
-export const OutlineDemo = Token("OutlineDemo")();
-/** @since 0.4.0 */
-export const Outlined = Token("Outlined").single<boolean>();
-/** @since 0.4.0 */
-export const OutlineStrength = Token("OutlineStrength").single<number>();
-/** @since 0.4.0 */
-export const OutlineChoice = Token("OutlineChoice").single<string>();
-/** @since 0.4.0 */
-export const OutlineStrengthInput = Token("OutlineStrengthInput")();
-
-/** @since 0.4.0 */
-export const NestedDemo = Token("NestedDemo")();
-/** @since 0.4.0 */
-export const OuterRadius = Token("OuterRadius").single<number>();
-/** @since 0.4.0 */
-export const InnerPadding = Token("InnerPadding").single<number>();
-/** @since 0.4.0 */
-export const OuterInput = Token("OuterInput")();
-/** @since 0.4.0 */
-export const PaddingInput = Token("PaddingInput")();
-/** @since 0.4.0 */
-export const OutlineReadout = Token("OutlineReadout").content<string>();
-/** @since 0.4.0 */
-export const NestedReadout = Token("NestedReadout").content<string>();
-/** @since 0.4.0 */
-export const ProportionalValue = Token("ProportionalValue").content<string>();
-/** @since 0.4.0 */
-export const TabularValue = Token("TabularValue").content<string>();
-
-/** @since 0.4.0 */
-export const NumericDemo = Token("NumericDemo")();
+export const MoreBelow = Token("MoreBelow").single<boolean>();
 /** @since 0.4.0 */
 export const Reading = Token("Reading").single<number>();
 /** @since 0.4.0 */
-export const RevealDemo = Token("RevealDemo")();
+export const Steady = Token("Steady").single<boolean>();
 /** @since 0.4.0 */
-export const Revealed = Token("Revealed").single<boolean>();
+export const ReadingText = Token("ReadingText").content<string>();
+/** @since 0.4.0 */
+export const Size = Token("Size").single<number>();
+/** @since 0.4.0 */
+export const Glyph = Token("Glyph").single<string>();
 
-// Paths a rule walks: the graph only navigates downward, so the description
-// names the parts a rule needs to reach.
+// Each marker wraps the element its rule styles, so the rule knows the tag.
 /** @since 0.4.0 */
-export const Stage = Token("Stage")();
+export const NestedBox = Token("NestedBox")();
 /** @since 0.4.0 */
-export const Photos = Token("Photos")();
+export const Outer = Token("Outer").single<number>();
 /** @since 0.4.0 */
-export const Controls = Token("Controls")();
+export const Padding = Token("Padding").single<number>();
 /** @since 0.4.0 */
-export const ReadoutRow = Token("ReadoutRow")();
+export const InnerBox = Token("InnerBox")();
 /** @since 0.4.0 */
-export const Numbers = Token("Numbers")();
+export const Metric = Token("Metric")();
 /** @since 0.4.0 */
-export const ProportionalColumn = Token("ProportionalColumn")();
+export const AdvanceStep = Token("AdvanceStep")();
 /** @since 0.4.0 */
-export const TabularColumn = Token("TabularColumn")();
+export const Tightened = Token("Tightened")();
 /** @since 0.4.0 */
-export const Knob = Token("Knob")();
+export const Balanced = Token("Balanced")();
 /** @since 0.4.0 */
-export const ThemeSwitch = Token("ThemeSwitch")();
+export const Optical = Token("Optical")();
 /** @since 0.4.0 */
-export const Body = Token("Body")();
+export const Framed = Token("Framed")();
 /** @since 0.4.0 */
-export const Layout = Token("Layout")();
+export const Edged = Token("Edged")();
+/** @since 0.4.0 */
+export const Target = Token("Target")();
+/** @since 0.4.0 */
+export const Tinted = Token("Tinted")();
+/** @since 0.4.0 */
+export const HoverProbe = Token("HoverProbe")();
+/** @since 0.4.0 */
+export const Pressable = Token("Pressable")();
+/** @since 0.4.0 */
+export const PressProbe = Token("PressProbe")();
+/** @since 0.4.0 */
+export const Faded = Token("Faded")();
+/** @since 0.4.0 */
+export const ScrollProbe = Token("ScrollProbe")();
+/** @since 0.4.0 */
+export const Sliding = Token("Sliding")();
+/** @since 0.4.0 */
+export const Mover = Token("Mover")();
+/** @since 0.4.0 */
+export const Step = Token("Step")();
