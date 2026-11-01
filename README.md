@@ -275,6 +275,20 @@ the draft input is a controlled `Property.Value`, and the count plus the
 strikethrough are derived rules. The todo description is also what drove the
 `Property` family and the renderer's structural-change detection.
 
+`examples/craft` encodes twelve design-engineering tips from
+[craft.gustavofior.com](https://craft.gustavofior.com) as rules. Each tip is a
+marker token plus one rule: the marker wraps the element, the rule reads the
+facts it carries and writes a value the description declared. A gallery shows
+each tip as a plain specimen beside one that opts in.
+
+It is where the undirected graph, per-element style tokens, and rules that
+write values into declared slots were first exercised at scale. Its README
+records what that taught.
+
+```sh
+cd examples/craft && bunx vite
+```
+
 ## Performance
 
 Benchmarks live in `packages/dom/bench` and `packages/react/bench`:

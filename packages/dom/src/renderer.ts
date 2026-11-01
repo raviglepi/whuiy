@@ -1,7 +1,7 @@
 /** @since 0.4.0 */
 
 import type {DecoratorMetadata} from "whuiy/primitives";
-import type {GraphChange, LiveToken, TokenRoot, TokenValue, WhuiyRuntime} from "whuiy";
+import type {GraphChange, LiveToken, Mount, TokenRoot, TokenValue, WhuiyRuntime} from "whuiy";
 import type {ErrorReporter} from "./errors.ts";
 
 import {Cause, Effect, Exit, Predicate, Schema} from "effect";
@@ -43,6 +43,8 @@ export interface DomRendererOptions {
 /** @since 0.4.0 */
 export interface DomRender {
   dispose(): void;
+  /** The mount this render owns, for callers that write facts after boot. */
+  readonly mount: Mount;
 }
 /** @since 0.4.0 */
 export interface DomRenderer {
@@ -312,6 +314,7 @@ export function createDomRenderer(options: DomRendererOptions): DomRenderer {
           if (disposed) return;
           teardown();
         },
+        mount: mounted,
       };
     },
   };

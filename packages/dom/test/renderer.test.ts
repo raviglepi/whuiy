@@ -50,6 +50,7 @@ describe("DOM renderer", () => {
     expect(button).toBeInstanceOf(HTMLButtonElement);
     if (!(button instanceof HTMLButtonElement)) throw new Error("Expected a button");
     expect(button.style.color).toBe("navy");
+    expect(rendered.mount.roots).toHaveLength(1);
 
     button.dispatchEvent(new MouseEvent("click", {bubbles: true}));
     expect(clicks).toBe(1);
