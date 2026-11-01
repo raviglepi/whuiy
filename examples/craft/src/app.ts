@@ -124,6 +124,14 @@ const panelOfSheet = (sheet: LiveToken) => inner(inner(sheet, Element.Div), Elem
 
 const published = entries.filter(entry => entry.status === "published");
 
+/** Routes the description can show; anything else falls back to the index. */
+const knownRoutes = new Set([
+  "/",
+  "/goats",
+  "/resources",
+  ...essays.map(essay => "/" + essay.slug),
+]);
+
 /** A query narrows the index to the concepts it names. */
 const matching = (query: string): readonly Entry[] => {
   const needle = query.trim().toLowerCase();
@@ -246,7 +254,8 @@ export const ui = new Whuiy()
   })
   // Every page and nav entry already holds a route slot; the root fact fills it.
   .rule(Craft(Route()), function* (craft) {
-    const route = asText(craft.get(Route).value(), "/");
+    const asked = asText(craft.get(Route).value(), "/");
+    const route = knownRoutes.has(asked) ? asked : "/";
     yield* shareRoute(stackOf(craft).all(Page), route);
     yield* shareRoute(sidebarOf(craft).get(TopNav).get(Element.Nav).all(NavEntry), route);
     yield* shareRoute(sidebarOf(craft).get(ChapterList).get(Element.Nav).all(NavEntry), route);

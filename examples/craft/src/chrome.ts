@@ -181,7 +181,7 @@ const chapterNav = () =>
       ...chapters.flatMap(chapter => [
         chapterLabel(chapter),
         ...entries
-          .filter(entry => entry.chapter === chapter)
+          .filter(entry => entry.chapter === chapter && entry.status === "published")
           .map(entry => navEntry("/" + entry.slug, "#/" + entry.slug, entry.title)),
       ]),
     ),
